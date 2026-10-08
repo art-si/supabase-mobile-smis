@@ -13,6 +13,8 @@ interface AmapGeocoder {
 
 export interface AmapMapHandle {
   destroy?: () => void
+  on?: (event: string, callback: () => void) => void
+  off?: (event: string, callback: () => void) => void
 }
 
 interface AmapApi {
@@ -124,7 +126,9 @@ async function reverseGeocode(longitude: number, latitude: number) {
     if (!AMap.Geocoder) return undefined
     const geocoder = new AMap.Geocoder({ extensions: 'all' })
     return await new Promise<ReturnType<typeof formatAddress>>((resolve) => {
+      const timeout = setTimeout(() => resolve(undefined), 4000)
       geocoder.getAddress([longitude, latitude], (status, result) => {
+        clearTimeout(timeout)
         if (status !== 'complete' || !result || typeof result !== 'object') {
           resolve(undefined)
           return
@@ -161,39 +165,42 @@ function formatAddress(address: unknown) {
 }
 
 function loadAmap(key: string): Promise<AmapApi> {
-  if (window.AMap?.Geocoder) return Promise.resolve(window.AMap)
+  if (window.AMap?.Geocoder && window.AMap.Map) return Promise.resolve(window.AMap)
   if (amapLoader) return amapLoader
 
   const securityJsCode = import.meta.env.VITE_AMAP_SECURITY_JS_CODE
   if (securityJsCode) window._AMapSecurityConfig = { securityJsCode }
 
   amapLoader = new Promise<AmapApi>((resolve, reject) => {
+    const timeout = setTimeout(() => reject(new Error('地图加载超时，请检查网络后重试')), 12000)
     const finish = () => {
       const AMap = window.AMap
       if (!AMap) {
+        clearTimeout(timeout)
         reject(new Error('高德地图服务加载失败'))
         return
       }
       if (AMap.Geocoder) {
+        clearTimeout(timeout)
         resolve(AMap)
         return
       }
-      AMap.plugin?.(['AMap.Geocoder'], () => AMap.Geocoder ? resolve(AMap) : reject(new Error('地址解析服务不可用')))
+      AMap.plugin?.(['AMap.Geocoder'], () => {
+        clearTimeout(timeout)
+        AMap.Geocoder ? resolve(AMap) : reject(new Error('地址解析服务不可用'))
+      })
     }
-
-    const existing = document.querySelector<HTMLScriptElement>('script[data-smis-amap-geocoder]')
-    if (existing) {
-      existing.addEventListener('load', finish, { once: true })
-      existing.addEventListener('error', () => reject(new Error('高德地图服务加载失败')), { once: true })
-      return
-    }
+    document.querySelector('script[data-smis-amap-geocoder]')?.remove()
 
     const script = document.createElement('script')
     script.dataset.smisAmapGeocoder = 'true'
     script.src = `https://webapi.amap.com/maps?v=2.0&key=${encodeURIComponent(key)}&plugin=AMap.Geocoder`
     script.async = true
     script.onload = finish
-    script.onerror = () => reject(new Error('高德地图服务加载失败'))
+    script.onerror = () => {
+      clearTimeout(timeout)
+      reject(new Error('高德地图服务加载失败'))
+    }
     document.head.appendChild(script)
   }).catch((error) => {
     amapLoader = undefined
@@ -203,11 +210,11 @@ function loadAmap(key: string): Promise<AmapApi> {
   return amapLoader
 }
 
-export async function createAmapPointMap(containerId: string, point: CapturedLocation): Promise<AmapMapHandle | undefined> {
+export async function createAmapPointMap(containerId: string, point: CapturedLocation): Promise<AmapMapHandle> {
   const key = import.meta.env.VITE_AMAP_KEY
-  if (!key) return undefined
+  if (!key) throw new Error('地图暂不可用，已保留位置坐标')
   const AMap = await loadAmap(key)
-  if (!AMap.Map || !AMap.Marker) return undefined
+  if (!AMap.Map || !AMap.Marker) throw new Error('地图服务暂不可用，请重试')
 
   const map = new AMap.Map(containerId, {
     zoom: 16,
@@ -224,6 +231,23 @@ export async function createAmapPointMap(containerId: string, point: CapturedLoc
     anchor: 'bottom-center'
   })
   map.add?.(marker)
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const complete = () => {
+        clearTimeout(timeout)
+        map.off?.('complete', complete)
+        resolve()
+      }
+      const timeout = setTimeout(() => {
+        map.off?.('complete', complete)
+        reject(new Error('地图加载超时，已保留位置坐标'))
+      }, 12000)
+      map.on?.('complete', complete)
+    })
+  } catch (error) {
+    map.destroy?.()
+    throw error
+  }
   return map
 }
 

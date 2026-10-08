@@ -13,7 +13,7 @@
 
 ## Overview
 
-Art Supabase SMIS Mobile is the frontline client for the SMIS safety-management module in `art-supabase-pro`. It is built with uni-app, Vue 3, TypeScript, Pinia, Wot Design Uni, and Supabase, and targets both H5 and WeChat Mini Programs.
+Art Supabase SMIS Mobile is the frontline client for the SMIS safety-management module in `art-supabase-pro`. It is built with uni-app, Vue 3, TypeScript, Pinia, Wot UI v2 (@wot-ui/ui), and Supabase, and targets both H5 and WeChat Mini Programs.
 
 The mobile application does not maintain a separate safety dataset. It shares accounts, employee profiles, organization permissions, dictionaries, and workflow states with the Web application. Secure server-side RPCs provide each employee's authorized tasks and synchronize inspection results, photos, rectification evidence, and acceptance decisions into the same audit trail.
 

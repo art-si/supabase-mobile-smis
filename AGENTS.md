@@ -1,5 +1,10 @@
 # Project Instructions
 
+- This application follows the shared architecture of `supabase-mobile-tms-driver`, while retaining SMIS business routes, RPCs, authentication providers, and models.
+- Use Wot UI v2 (`@wot-ui/ui`), shared components under `src/components/business`, and `usePageTheme` with a page-level ConfigProvider. Keep SMIS storage keys isolated from the driver application.
+- Before changing Wot components, consult the local `wot-ui-v2` skill. Preserve the v2 form schema and FormItem/picker separation.
+- Run `pnpm audit:visual` and `pnpm audit:interactions` against the local H5 service for UI changes. Browser fixtures intercept Supabase requests and must never be used as application runtime data.
+
 - Before creating, modifying, refactoring, or reviewing source code, first read and apply the local `project-code-quality` skill.
 - Before creating, modifying, refactoring, reviewing, or visually auditing any user-facing page or component, first read and apply both the local `professional-ui-quality` and `web-design-guidelines` skills. Treat responsive layout, touch targets, complete UI states, overflow checks, accessibility, and real-browser visual verification as part of completion.
 - Before any Supabase, database, schema, RLS, Storage, Auth, or API-provider task, first read the local `supabase` skill and verify that the Supabase MCP server is available for this project.

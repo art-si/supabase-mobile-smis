@@ -1,6 +1,6 @@
 ---
 name: project-code-quality
-description: Enforce repository-wide code quality for this Uni-app SMIS mobile application. Use before creating, modifying, refactoring, or reviewing source code, API modules, shared utilities, Pinia stores, components, tests, configuration, or project structure. Covers reuse, ownership boundaries, user-facing errors, type and async safety, change isolation, and verification.
+description: Enforce repository-wide code quality for this Uni-app SMIS application. Use before creating, modifying, refactoring, or reviewing source code, API modules, shared utilities, Pinia stores, components, tests, configuration, or project structure. Covers reuse, ownership boundaries, user-facing errors, type and async safety, change isolation, and verification.
 ---
 
 # Project Code Quality

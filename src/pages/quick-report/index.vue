@@ -1,14 +1,18 @@
 <script setup lang="ts">
+import SmisLoadError from '@/components/business/SmisLoadError.vue'
+
+import { usePageTheme } from '@/composables/usePageTheme'
 import { computed, reactive, ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
-import type { FormInstance, FormRules } from 'wot-design-uni/components/wd-form/types'
-import SmisBottomNav from '@/components/SmisBottomNav.vue'
-import SmisEvidenceUpload from '@/components/SmisEvidenceUpload.vue'
-import SmisFormSection from '@/components/SmisFormSection.vue'
-import SmisIcon from '@/components/SmisIcon.vue'
-import SmisLocationField from '@/components/SmisLocationField.vue'
-import SmisTextareaField from '@/components/SmisTextareaField.vue'
-import SmisTopBar from '@/components/SmisTopBar.vue'
+import type { FormInstance, FormSchema } from '@wot-ui/ui/components/wd-form/types'
+import SmisSelectField from '@/components/business/SmisSelectField.vue'
+import SmisBottomNav from '@/components/business/SmisBottomNav.vue'
+import SmisEvidenceUpload from '@/components/business/SmisEvidenceUpload.vue'
+import SmisFormSection from '@/components/business/SmisFormSection.vue'
+import SmisIcon from '@/components/business/SmisIcon.vue'
+import SmisLocationField from '@/components/business/SmisLocationField.vue'
+import SmisTextareaField from '@/components/business/SmisTextareaField.vue'
+import SmisTopBar from '@/components/business/SmisTopBar.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useDictionaryStore } from '@/stores/dictionary'
 import { useProfileStore } from '@/stores/profile'
@@ -16,6 +20,8 @@ import { submitQuickReport } from '@/api/smis'
 import { getErrorMessage } from '@/api/supabase'
 import type { ReportingOrganization, ReportingSite } from '@/api/types'
 import { flattenHierarchy, toHierarchyOptions } from '@/utils/options'
+
+const { themeName } = usePageTheme()
 
 interface QuickReportForm {
   hazardOrganizationId: string
@@ -31,6 +37,7 @@ const auth = useAuthStore()
 const dictionary = useDictionaryStore()
 const profileStore = useProfileStore()
 const formRef = ref<FormInstance>()
+const loadError = ref('')
 const loading = ref(false)
 const uploading = ref(false)
 const locating = ref(false)
@@ -45,12 +52,20 @@ const form = reactive<QuickReportForm>({
   imageUrls: []
 })
 
-const rules: FormRules = {
-  hazardOrganizationId: [{ required: true, message: '请选择隐患所属组织' }],
-  siteId: [{ required: true, message: '请选择场所区域' }],
-  location: [{ required: true, message: '请填写或采集具体位置' }],
-  hazardLevel: [{ required: true, message: '请选择隐患等级' }],
-  description: [{ required: true, message: '请描述现场隐患' }]
+const requiredFields = {
+  hazardOrganizationId: '请选择隐患所属组织',
+  siteId: '请选择场所区域',
+  location: '请填写或采集具体位置',
+  hazardLevel: '请选择隐患等级',
+  description: '请描述现场隐患'
+} as const
+const schema: FormSchema = {
+  validate(model: Record<string, unknown>) {
+    return Object.entries(requiredFields)
+      .filter(([key]) => typeof model[key] !== 'string' || !String(model[key]).trim())
+      .map(([key, message]) => ({ path: [key], message }))
+  },
+  isRequired(path) { return path in requiredFields }
 }
 
 const organizations = computed(() => flattenHierarchy<ReportingOrganization>(profileStore.options?.organizations || []))
@@ -71,11 +86,12 @@ const hazardLevelOptions = computed(() => {
 async function load() {
   if (!(await auth.ensureValidSession())) return
   loading.value = true
+  loadError.value = ''
   try {
     await Promise.all([profileStore.load(auth.token), dictionary.load(auth.token)])
     form.hazardOrganizationId ||= profileStore.profile?.organizationId || ''
   } catch (error) {
-    uni.showToast({ title: getErrorMessage(error), icon: 'none' })
+    loadError.value = getErrorMessage(error)
   } finally {
     loading.value = false
   }
@@ -116,29 +132,31 @@ onShow(load)
 </script>
 
 <template>
+<wd-config-provider :theme="themeName">
   <view class="page-shell report-page">
     <SmisTopBar title="现场随手拍" eyebrow="QUICK HAZARD REPORT" subtitle="拍照留证，隐患直达闭环" show-back />
 
     <view class="page-body report-body">
+      <SmisLoadError v-if="loadError" :message="loadError" @retry="load()" />
       <view v-if="loading" class="loading surface-card" aria-live="polite">
-        <wd-loading color="#4f46e5" />
+        <wd-loading color="var(--smis-primary)" />
         <text>正在加载上报信息…</text>
       </view>
 
-      <template v-else>
+      <template v-else-if="!loadError">
         <view class="reporter surface-card">
           <view class="reporter__avatar">{{ (profileStore.profile?.employeeName || '安').slice(-1) }}</view>
           <view class="reporter__copy">
             <text>{{ profileStore.profile?.employeeName || '当前登录用户' }}</text>
             <text class="small">{{ profileStore.profile?.organizationName || '请先选择所属组织' }}</text>
           </view>
-          <view class="reporter__verified"><SmisIcon name="check" size="22rpx" />实名</view>
+          <view v-if="profileStore.profile?.isEmployeeLinked" class="reporter__verified"><SmisIcon name="check" size="22rpx" />实名</view>
         </view>
 
-        <wd-form ref="formRef" :model="form" :rules="rules" error-type="toast">
+        <wd-form ref="formRef" :model="form" :schema="schema" error-type="toast">
           <SmisFormSection title="隐患位置" description="选择业务归属，并记录可复核的现场位置" icon="location">
             <view class="form-stack">
-              <wd-picker
+              <SmisSelectField
                 v-model="form.hazardOrganizationId"
                 custom-class="smis-form-control"
                 label="所属组织"
@@ -146,14 +164,9 @@ onShow(load)
                 placeholder="请选择所属组织…"
                 prop="hazardOrganizationId"
                 required
-                clearable
-                root-portal
-                :z-index="80"
                 :columns="organizationOptions"
-                value-key="value"
-                label-key="label"
               />
-              <wd-picker
+              <SmisSelectField
                 v-model="form.siteId"
                 custom-class="smis-form-control"
                 label="场所区域"
@@ -161,29 +174,26 @@ onShow(load)
                 :placeholder="siteOptions.length ? '请选择场所区域…' : '暂无可用场所'"
                 prop="siteId"
                 required
-                clearable
-                root-portal
-                :z-index="80"
                 :disabled="!siteOptions.length"
                 :columns="siteOptions"
-                value-key="value"
-                label-key="label"
               />
               <view v-if="!siteOptions.length" class="option-warning">
                 <SmisIcon name="notice" size="27rpx" />
                 <text>当前租户还没有维护场所，请先在 Web 端基础资料中新增场所。</text>
               </view>
+              <wd-form-item prop="location" required>
               <SmisLocationField
                 v-model="form.location"
                 required
                 @update:locating="locating = $event"
               />
+              </wd-form-item>
             </view>
           </SmisFormSection>
 
           <SmisFormSection title="隐患情况" description="描述问题、风险后果与建议措施" icon="risk">
             <view class="form-stack">
-              <wd-picker
+              <SmisSelectField
                 v-model="form.hazardLevel"
                 custom-class="smis-form-control"
                 label="隐患等级"
@@ -191,12 +201,9 @@ onShow(load)
                 placeholder="请选择隐患等级…"
                 prop="hazardLevel"
                 required
-                root-portal
-                :z-index="80"
                 :columns="hazardLevelOptions"
-                value-key="value"
-                label-key="label"
               />
+              <wd-form-item prop="description" required>
               <SmisTextareaField
                 v-model="form.description"
                 label="隐患描述"
@@ -206,6 +213,7 @@ onShow(load)
                 :maxlength="500"
                 placeholder="描述危险状态、可能后果与影响范围…"
               />
+              </wd-form-item>
               <SmisTextareaField
                 v-model="form.rectificationSuggestion"
                 label="整改建议"
@@ -252,26 +260,27 @@ onShow(load)
     </view>
     <SmisBottomNav active="quick" />
   </view>
+</wd-config-provider>
 </template>
 
 <style scoped lang="scss">
-.report-body { padding-top: 26rpx; padding-bottom: calc(316rpx + env(safe-area-inset-bottom)) !important; }
+.report-body { padding-top: 26rpx; padding-bottom: calc(var(--smis-nav-height) + var(--smis-control-height) + 112rpx + env(safe-area-inset-bottom)) !important; }
 .loading { min-height: 340rpx; display: flex; align-items: center; justify-content: center; gap: 14rpx; color: var(--smis-text-secondary); }
 .reporter { margin-bottom: 18rpx; padding: 22rpx; display: flex; align-items: center; gap: 16rpx; }
-.reporter__avatar { width: 66rpx; height: 66rpx; flex: 0 0 66rpx; border-radius: 20rpx; background: var(--smis-primary-soft); color: var(--smis-primary); font-size: 27rpx; font-weight: 800; display: flex; align-items: center; justify-content: center; }
+.reporter__avatar { width: 66rpx; height: 66rpx; flex: 0 0 66rpx; border-radius: 20rpx; background: var(--smis-primary-soft); color: var(--smis-primary); font-size: clamp(14px, 27rpx, 15px); font-weight: 700; display: flex; align-items: center; justify-content: center; }
 .reporter__copy { min-width: 0; flex: 1; display: flex; flex-direction: column; }
-.reporter__copy > text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 25rpx; font-weight: 800; }
-.reporter__copy .small { margin-top: 4rpx; color: var(--smis-text-muted); font-size: 20rpx; font-weight: 500; }
-.reporter__verified { height: 48rpx; padding: 0 14rpx; border-radius: 999rpx; background: #e4f2eb; color: var(--smis-success); display: flex; align-items: center; gap: 5rpx; font-size: 18rpx; font-weight: 800; }
+.reporter__copy > text { overflow: hidden; overflow-wrap: anywhere; line-height: 1.5; font-size: clamp(14px, 25rpx, 15px); font-weight: 700; }
+.reporter__copy .small { margin-top: 4rpx; color: var(--smis-text-muted); font-size: clamp(13px, 20rpx, 14px); font-weight: 500; }
+.reporter__verified { height: 48rpx; padding: 0 14rpx; border-radius: 999rpx; background: #e4f2eb; color: var(--smis-success); display: flex; align-items: center; gap: 5rpx; font-size: clamp(13px, 18rpx, 14px); font-weight: 700; }
 .form-stack { display: flex; flex-direction: column; gap: 14rpx; }
 :deep(.smis-form-control) { overflow: hidden; border: 1rpx solid var(--smis-control-border); border-radius: var(--smis-control-radius); background: var(--smis-control-bg); }
-:deep(.smis-form-control .wd-cell) { padding: 20rpx !important; }
-:deep(.smis-form-control .wd-cell__title) { color: var(--smis-text-secondary); font-size: 21rpx; font-weight: 700; }
-:deep(.smis-form-control .wd-cell__value) { color: var(--smis-text); font-size: 24rpx; }
-.option-warning { padding: 16rpx; border-radius: 14rpx; background: #fff7e8; color: #9a6611; display: flex; align-items: flex-start; gap: 10rpx; font-size: 20rpx; line-height: 1.5; }
+
+:deep(.smis-form-control .wd-cell__title) { color: var(--smis-text-secondary); font-size: clamp(13px, 21rpx, 14px); font-weight: 700; }
+:deep(.smis-form-control .wd-cell__value) { color: var(--smis-text); font-size: clamp(14px, 24rpx, 15px); }
+.option-warning { padding: 16rpx; border-radius: 14rpx; background: #fff7e8; color: #9a6611; display: flex; align-items: flex-start; gap: 10rpx; font-size: clamp(13px, 20rpx, 14px); line-height: 1.5; }
 .report-evidence { margin-top: 18rpx; }
-.submit-note { margin: 20rpx 4rpx 0; display: flex; align-items: flex-start; gap: 12rpx; color: var(--smis-text-secondary); font-size: 19rpx; line-height: 1.5; }
+.submit-note { margin: 20rpx 4rpx 0; display: flex; align-items: flex-start; gap: 12rpx; color: var(--smis-text-secondary); font-size: clamp(13px, 19rpx, 14px); line-height: 1.5; }
 .submit-note .i { width: 10rpx; height: 10rpx; flex: 0 0 10rpx; margin-top: 9rpx; border-radius: 50%; background: var(--smis-safety); }
-.report-action-dock { position: fixed; z-index: 26; left: 50%; bottom: calc(148rpx + env(safe-area-inset-bottom)); width: min(calc(100vw - 56rpx), 484px); box-sizing: border-box; padding: 12rpx; border: 1rpx solid rgba(220, 227, 238, .88); border-radius: 24rpx; background: rgba(255, 255, 255, .96); box-shadow: 0 16rpx 42rpx rgba(29, 39, 66, .16); transform: translateX(-50%); backdrop-filter: blur(24rpx) saturate(150%); }
+.report-action-dock { position: fixed; z-index: 26; left: 50%; bottom: calc(var(--smis-nav-height) + 32rpx + env(safe-area-inset-bottom)); width: min(calc(100vw - 56rpx), 484px); box-sizing: border-box; padding: 12rpx; border: 1rpx solid rgba(220, 227, 238, .88); border-radius: 24rpx; background: rgba(255, 255, 255, .96); box-shadow: 0 4rpx 16rpx rgba(29, 39, 66, .08); transform: translateX(-50%); backdrop-filter: blur(24rpx) saturate(150%); }
 :deep(.report-submit) { width: 100% !important; }
 </style>

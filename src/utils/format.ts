@@ -1,3 +1,10 @@
+export const STATUS_LABEL: Record<string, string> = {
+  not_started: '待执行', in_progress: '执行中', overdue: '已逾期', completed: '已完成', cancelled: '已取消',
+  pending_approval: '待核准', rectifying: '整改中', pending_acceptance: '待验收', closed: '已关闭',
+  normal: '正常', abnormal: '异常', pending: '待检查', in_use: '在用', stopped: '停用', scrapped: '报废',
+  maintenance: '检修中', fault: '故障', idle: '闲置', active: '有效', enabled: '启用', disabled: '停用'
+}
+
 export function formatDate(value?: string | null, withTime = false) {
   if (!value) return '--'
   const date = new Date(value)

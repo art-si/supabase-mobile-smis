@@ -5,11 +5,11 @@ description: Enforce production-grade mobile UI quality for this Uni-app SMIS ap
 
 # Professional UI Quality
 
-Treat visual and interaction quality as part of feature completion. Build a calm, precise, trustworthy safety-production interface that remains easy to operate quickly in field and plant environments.
+Treat visual and interaction quality as part of feature completion. Build a calm, precise, trustworthy safety-production interface that remains easy to operate quickly in a field and plant environment.
 
 ## Use The Existing System
 
-- Use the project tokens in `src/styles/theme.scss`, Wot Design Uni components, and shared `Smis*` business components as the source of truth.
+- Use the project tokens in `src/uni.scss`, Wot Design Uni components, and shared `Smis*` business components as the source of truth.
 - Extend the nearest shared token or component before duplicating a broadly useful pattern in a page.
 - Use HarmonyOS Sans as the primary product typeface and real bundled weights where available. Keep tabular numerals for operational data.
 - Prefer neutral surfaces, indigo/blue primary accents, and restrained semantic success, warning, and danger colors.
@@ -28,7 +28,7 @@ Treat visual and interaction quality as part of feature completion. Build a calm
 
 ## Required Workflow
 
-1. Read the target page, its child modules, `src/styles/theme.scss`, and one polished neighboring workflow.
+1. Read the target page, its child modules, `src/uni.scss`, and one polished neighboring workflow.
 2. Identify the primary task, primary action, hierarchy, high-frequency data, and narrowest supported viewport.
 3. Reuse or extend shared components and tokens. Do not introduce a competing local design system.
 4. Implement relevant loading, empty, error/retry, disabled, busy, success, long-text, missing-value, and dense-data states.
@@ -42,6 +42,6 @@ Treat visual and interaction quality as part of feature completion. Build a calm
 - Type hierarchy clearly separates title, section, body, metadata, and status.
 - Cards and sections align to a coherent grid and spacing rhythm.
 - Equivalent buttons share height, radius, typography, icon gap, and state behavior.
-- Long Chinese names, locations, identifiers, and large numbers remain usable.
+- Long Chinese names, addresses, identifiers, and large numbers remain usable.
 - Loading, empty, error, retry, disabled, and completion states look intentional.
 - No new horizontal overflow or console errors appear at mobile width.

@@ -1,19 +1,26 @@
 <script setup lang="ts">
+import SmisLoadError from '@/components/business/SmisLoadError.vue'
+
+import { usePageTheme } from '@/composables/usePageTheme'
 import { computed, reactive, ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
-import SmisEvidenceUpload from '@/components/SmisEvidenceUpload.vue'
-import SmisIcon from '@/components/SmisIcon.vue'
-import SmisStatusTag from '@/components/SmisStatusTag.vue'
-import SmisTopBar from '@/components/SmisTopBar.vue'
-import SmisTextareaField from '@/components/SmisTextareaField.vue'
+import SmisEvidenceUpload from '@/components/business/SmisEvidenceUpload.vue'
+import SmisIcon from '@/components/business/SmisIcon.vue'
+import SmisStatusTag from '@/components/business/SmisStatusTag.vue'
+import SmisTopBar from '@/components/business/SmisTopBar.vue'
+import SmisTextareaField from '@/components/business/SmisTextareaField.vue'
 import { useAuthStore } from '@/stores/auth'
 import { getHazard, submitHazardAcceptance, submitHazardRectification } from '@/api/smis'
 import { getErrorMessage } from '@/api/supabase'
 import type { HazardDetail } from '@/api/types'
 import { formatDate, hazardLevelBadge } from '@/utils/format'
 
+const { themeName } = usePageTheme()
+
 const auth = useAuthStore()
 const detail = ref<HazardDetail | null>(null)
+const currentId = ref('')
+const loadError = ref('')
 const loading = ref(true)
 const saving = ref(false)
 const uploading = ref(false)
@@ -23,12 +30,14 @@ const actionTitle = computed(() => detail.value?.status === 'rectifying'
   : detail.value?.status === 'pending_acceptance' ? '验收处理' : '')
 
 async function load(id: string) {
+  currentId.value = id
   if (!(await auth.ensureValidSession())) return
   loading.value = true
+  loadError.value = ''
   try {
     detail.value = await getHazard(auth.token, id)
   } catch (error) {
-    uni.showToast({ title: getErrorMessage(error), icon: 'none' })
+    loadError.value = getErrorMessage(error)
   } finally {
     loading.value = false
   }
@@ -79,10 +88,12 @@ onLoad((query) => load(String(query?.id || '')))
 </script>
 
 <template>
+<wd-config-provider :theme="themeName">
   <view class="page-shell">
-    <SmisTopBar :title="detail?.hazardNo || '隐患详情'" subtitle="隐患治理闭环" show-back />
+    <SmisTopBar title="隐患详情" :subtitle="detail?.hazardNo || '隐患治理闭环'" show-back />
     <view class="page-body detail-body">
-      <view v-if="loading" class="loading" aria-live="polite"><wd-loading color="#4f46e5" /></view>
+      <SmisLoadError v-if="loadError" :message="loadError" @retry="load(currentId)" />
+      <view v-if="loading" class="loading" aria-live="polite"><wd-loading color="var(--smis-primary)" /></view>
 
       <template v-else-if="detail">
         <view class="hazard-main surface-card">
@@ -116,6 +127,7 @@ onLoad((query) => load(String(query?.id || '')))
 
         <view class="timeline">
           <text class="title">闭环轨迹</text>
+          <text v-if="!detail.events.length" class="timeline__empty">暂无流转记录，后续处理节点将在这里展示</text>
           <view v-for="(event, index) in detail.events" :key="event.id" class="event">
             <view class="event__rail"><view class="i" :class="{ 'event__dot--current': index === 0 }" /><view v-if="index < detail.events.length - 1" class="span" /></view>
             <view class="event__copy">
@@ -167,9 +179,10 @@ onLoad((query) => load(String(query?.id || '')))
         </view>
       </template>
 
-      <view v-else class="loading surface-card">隐患不存在或无权查看</view>
+      <view v-else-if="!loadError" class="loading surface-card">隐患不存在或无权查看</view>
     </view>
   </view>
+</wd-config-provider>
 </template>
 
 <style scoped lang="scss">
@@ -177,38 +190,40 @@ onLoad((query) => load(String(query?.id || '')))
 .loading { min-height: 340rpx; display: flex; align-items: center; justify-content: center; color: var(--smis-text-muted); }
 .hazard-main { padding: 26rpx; }
 .hazard-main__head { display: flex; align-items: center; gap: 15rpx; }
-.level { width: 64rpx; height: 64rpx; border-radius: 19rpx; background: #fff1df; color: var(--smis-warning); font-size: 28rpx; font-weight: 800; display: flex; align-items: center; justify-content: center; }
+.level { width: 64rpx; height: 64rpx; border-radius: 19rpx; background: #fff1df; color: var(--smis-warning); font-size: clamp(15px, 28rpx, 17px); font-weight: 700; display: flex; align-items: center; justify-content: center; }
 .hazard-main__head > view:nth-child(2) { min-width: 0; flex: 1; display: flex; flex-direction: column; align-items: flex-start; gap: 7rpx; }
-.hazard-main__head > view > text { color: var(--smis-text-muted); font-size: 20rpx; }
-.hazard-main__desc { display: block; margin-top: 20rpx; font-size: 29rpx; font-weight: 800; line-height: 1.55; overflow-wrap: anywhere; }
-.hazard-main__place { margin-top: 16rpx; padding: 15rpx; border-radius: 15rpx; background: var(--smis-control-bg); color: var(--smis-text-secondary); font-size: 22rpx; display: flex; align-items: flex-start; gap: 8rpx; }
+.hazard-main__head > view > text { color: var(--smis-text-muted); font-size: clamp(13px, 20rpx, 14px); }
+.hazard-main__desc { display: block; margin-top: 20rpx; font-size: clamp(15px, 29rpx, 17px); font-weight: 600; line-height: 1.65; overflow-wrap: anywhere; }
+.hazard-main__place { margin-top: 16rpx; padding: 15rpx; border-radius: 15rpx; background: var(--smis-control-bg); color: var(--smis-text-secondary); font-size: clamp(13px, 22rpx, 14px); display: flex; align-items: center; gap: 8rpx; }
 .photos { width: 100%; margin-top: 18rpx; white-space: nowrap; }
 .photos image { display: inline-block; width: 220rpx; height: 160rpx; margin-right: 12rpx; border-radius: 16rpx; box-shadow: inset 0 0 0 1rpx rgba(0, 0, 0, 0.1); }
 .facts { margin-top: 17rpx; padding: 25rpx; }
-.title { display: block; margin-bottom: 17rpx; font-size: 28rpx; font-weight: 800; }
+.title { display: block; margin-bottom: 17rpx; font-size: clamp(15px, 28rpx, 17px); font-weight: 700; }
 .facts > view { min-height: 70rpx; display: grid; grid-template-columns: 150rpx minmax(0, 1fr); gap: 16rpx; align-items: center; }
 .facts > view + view { border-top: 1rpx solid var(--smis-line); }
-.facts > view text { color: var(--smis-text-muted); font-size: 20rpx; }
-.facts .strong { color: var(--smis-text); font-size: 22rpx; line-height: 1.5; overflow-wrap: anywhere; }
-.timeline { margin-top: 27rpx; padding: 0 6rpx; }
+.facts > view text { color: var(--smis-text-muted); font-size: clamp(13px, 20rpx, 14px); }
+.facts .strong { color: var(--smis-text); font-size: clamp(13px, 22rpx, 14px); line-height: 1.5; overflow-wrap: anywhere; }
+.timeline { margin-top: 20rpx; padding: 24rpx; border: 1rpx solid var(--smis-line); border-radius: var(--smis-radius-lg); background: var(--smis-surface); }
 .event { display: flex; gap: 16rpx; }
 .event__rail { width: 24rpx; display: flex; flex-direction: column; align-items: center; }
 .event__rail .i { width: 18rpx; height: 18rpx; border: 4rpx solid #9eb1bf; border-radius: 50%; background: var(--smis-bg); }
 .event__rail .event__dot--current { border-color: var(--smis-safety); }
 .event__rail .span { width: 2rpx; min-height: 76rpx; flex: 1; background: #d8e1e7; }
 .event__copy { min-width: 0; flex: 1; padding-bottom: 28rpx; }
-.event__copy > view { display: flex; justify-content: space-between; gap: 12rpx; }
-.event__copy .strong { font-size: 23rpx; }
-.event__copy .small { color: var(--smis-text-muted); font-size: 18rpx; }
-.event__copy > text { display: block; margin-top: 7rpx; color: var(--smis-text-secondary); font-size: 20rpx; line-height: 1.45; }
+.event__copy > view { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12rpx; }
+.event__copy .strong { font-size: clamp(13px, 23rpx, 14px); }
+.event__copy .small { color: var(--smis-text-muted); font-size: clamp(13px, 18rpx, 14px); }
+.event__copy > text { display: block; margin-top: 7rpx; color: var(--smis-text-secondary); font-size: clamp(13px, 20rpx, 14px); line-height: 1.45; }
 .action { margin-top: 20rpx; padding: 25rpx; overflow: visible; }
 .action__head { margin-bottom: 18rpx; display: flex; align-items: center; gap: 14rpx; }
 .action__head .title { margin: 0; }
 .action__head > view:last-child { min-width: 0; flex: 1; display: flex; flex-direction: column; }
-.action__head > view:last-child > text:last-child { margin-top: 4rpx; color: var(--smis-text-muted); font-size: 19rpx; }
+.action__head > view:last-child > text:last-child { margin-top: 4rpx; color: var(--smis-text-muted); font-size: clamp(13px, 19rpx, 14px); }
 .action__icon { width: 58rpx; height: 58rpx; border-radius: 18rpx; background: var(--smis-primary-soft); color: var(--smis-primary); display: flex; align-items: center; justify-content: center; }
 .action__textarea { margin-bottom: 22rpx; }
 :deep(.action__primary) { width: 100% !important; margin-top: 22rpx !important; }
 .accept-actions { margin-top: 22rpx; display: grid; grid-template-columns: 1fr 1.45fr; gap: 12rpx; }
 .accept-actions :deep(.wd-button) { width: 100% !important; margin: 0 !important; }
+.timeline__empty { display: block; padding: 12rpx 0; font-size: 13px; line-height: 1.6; color: var(--smis-text-secondary); }
+.facts > view { padding: 16rpx 0; }
 </style>

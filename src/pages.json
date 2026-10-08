@@ -2,30 +2,123 @@
   "easycom": {
     "autoscan": true,
     "custom": {
-      "^wd-(.*)": "wot-design-uni/components/wd-$1/wd-$1.vue"
+      "^wd-(.*)": "@wot-ui/ui/components/wd-$1/wd-$1.vue"
     }
   },
   "pages": [
-    { "path": "pages/login/index", "style": { "navigationStyle": "custom" } },
-    { "path": "pages/home/index", "style": { "navigationStyle": "custom" } },
-    { "path": "pages/workbench/index", "style": { "navigationStyle": "custom" } },
-    { "path": "pages/messages/index", "style": { "navigationStyle": "custom", "enablePullDownRefresh": true, "onReachBottomDistance": 120 } },
-    { "path": "pages/quick-report/index", "style": { "navigationStyle": "custom" } },
-    { "path": "pages/equipment/index", "style": { "navigationStyle": "custom", "enablePullDownRefresh": true, "onReachBottomDistance": 120 } },
-    { "path": "pages/equipment/detail", "style": { "navigationStyle": "custom" } },
-    { "path": "pages/schedule/index", "style": { "navigationStyle": "custom" } },
-    { "path": "pages/risk/index", "style": { "navigationStyle": "custom", "enablePullDownRefresh": true, "onReachBottomDistance": 120 } },
-    { "path": "pages/risk/detail", "style": { "navigationStyle": "custom" } },
-    { "path": "pages/inspection/index", "style": { "navigationStyle": "custom", "enablePullDownRefresh": true, "onReachBottomDistance": 120 } },
-    { "path": "pages/inspection/detail", "style": { "navigationStyle": "custom" } },
-    { "path": "pages/hazards/index", "style": { "navigationStyle": "custom", "enablePullDownRefresh": true, "onReachBottomDistance": 120 } },
-    { "path": "pages/hazards/detail", "style": { "navigationStyle": "custom" } },
-    { "path": "pages/mine/index", "style": { "navigationStyle": "custom" } }
+    {
+      "path": "pages/login/index",
+      "style": {
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/home/index",
+      "style": {
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/workbench/index",
+      "style": {
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/messages/index",
+      "style": {
+        "navigationStyle": "custom",
+        "enablePullDownRefresh": true,
+        "onReachBottomDistance": 120
+      }
+    },
+    {
+      "path": "pages/quick-report/index",
+      "style": {
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/equipment/index",
+      "style": {
+        "navigationStyle": "custom",
+        "enablePullDownRefresh": true,
+        "onReachBottomDistance": 120
+      }
+    },
+    {
+      "path": "pages/equipment/detail",
+      "style": {
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/schedule/index",
+      "style": {
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/risk/index",
+      "style": {
+        "navigationStyle": "custom",
+        "enablePullDownRefresh": true,
+        "onReachBottomDistance": 120
+      }
+    },
+    {
+      "path": "pages/risk/detail",
+      "style": {
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/inspection/index",
+      "style": {
+        "navigationStyle": "custom",
+        "enablePullDownRefresh": true,
+        "onReachBottomDistance": 120
+      }
+    },
+    {
+      "path": "pages/inspection/detail",
+      "style": {
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/hazards/index",
+      "style": {
+        "navigationStyle": "custom",
+        "enablePullDownRefresh": true,
+        "onReachBottomDistance": 120
+      }
+    },
+    {
+      "path": "pages/hazards/detail",
+      "style": {
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/mine/index",
+      "style": {
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/settings/index",
+      "style": {
+        "navigationStyle": "custom"
+      }
+    }
   ],
   "globalStyle": {
     "navigationBarTextStyle": "black",
     "navigationBarTitleText": "SMIS 安全生产",
     "navigationBarBackgroundColor": "#ffffff",
-    "backgroundColor": "#f2f5fa"
+    "backgroundColor": "#f2f5fa",
+    "rpxCalcMaxDeviceWidth": 520,
+    "rpxCalcBaseDeviceWidth": 520
   }
 }

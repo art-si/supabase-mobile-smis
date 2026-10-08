@@ -10,12 +10,6 @@ function loadStartupData() {
 
   startupPromise = (async () => {
     const auth = useAuthStore()
-    auth.hydrate()
-    if (!auth.isLoggedIn) {
-      uni.reLaunch({ url: '/pages/login/index' })
-      return
-    }
-
     const isValid = await auth.ensureValidSession()
     if (isValid) await useDictionaryStore().load(auth.token)
   })()
@@ -39,32 +33,18 @@ onShow(() => {
 </script>
 
 <style lang="scss">
-@use '@/styles/theme.scss';
-@use '@/styles/page-polish.scss';
+@use './styles/global.scss';
 
 page {
   min-height: 100%;
   background: var(--smis-bg);
   color: var(--smis-text);
-  font-family:
-    'HarmonyOS Sans', 'HarmonyOS Sans SC', 'PingFang SC', MiSans, 'Noto Sans SC', -apple-system, BlinkMacSystemFont,
-    'Segoe UI', 'Microsoft YaHei', sans-serif;
+  font-family: var(--smis-font-family);
   font-weight: 400;
   font-synthesis: none;
   font-variant-numeric: tabular-nums;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
-}
-
-page::before {
-  position: fixed;
-  inset: 0;
-  z-index: -1;
-  content: '';
-  pointer-events: none;
-  background:
-    radial-gradient(circle at 6% 0, rgba(79, 70, 229, 0.055), transparent 440rpx),
-    radial-gradient(circle at 96% 36%, rgba(37, 99, 235, 0.035), transparent 420rpx);
 }
 
 view,
@@ -85,30 +65,83 @@ button,
   touch-action: manipulation;
 }
 
-button {
+button,
+input,
+textarea {
   font-family: inherit;
-  line-height: 1.2;
-  vertical-align: middle;
-}
-
-.wd-button__content,
-.wd-button__text {
-  min-width: 0;
-  line-height: 1.2;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.wd-button__text {
-  gap: 8rpx;
 }
 
 button:focus-visible,
 [role='button']:focus-visible {
-  outline: 4rpx solid rgba(79, 70, 229, 0.32);
+  outline: 4rpx solid rgba(var(--smis-primary-rgb), 0.32);
   outline-offset: 4rpx;
 }
+
+/* uni-button 不继承页面的 scoped 样式，凭证操作统一放在应用全局层。 */
+.smis-evidence-preview {
+  display: block;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: inherit;
+  background: transparent;
+  line-height: 0;
+}
+
+.smis-evidence-preview::after,
+.smis-evidence-remove::after {
+  border: 0;
+}
+
+.smis-evidence-preview image {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.smis-evidence-preview:focus-visible {
+  outline: 4rpx solid var(--smis-primary);
+  outline-offset: -4rpx;
+}
+
+.smis-evidence-remove {
+  position: absolute;
+  z-index: 2;
+  top: 0;
+  right: 0;
+  width: 88rpx;
+  height: 88rpx;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  color: #fff;
+  background: radial-gradient(circle at center, rgba(16, 24, 40, 0.78) 21rpx, transparent 22rpx);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 30rpx;
+  line-height: 1;
+}
+
+.smis-evidence-remove:focus-visible {
+  outline: 4rpx solid var(--smis-primary);
+  outline-offset: -4rpx;
+}
+
+/* #ifdef H5 */
+uni-scroll-view .uni-scroll-view {
+  scrollbar-width: none;
+}
+
+uni-scroll-view .uni-scroll-view::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+/* #endif */
 
 input,
 textarea {

@@ -1,6 +1,6 @@
 ---
 name: web-design-guidelines
-description: Review this Uni-app SMIS mobile H5 and cross-platform UI against current web interface, accessibility, typography, touch, safe-area, responsive-layout, content, and performance guidelines. Use for UI reviews, UX audits, accessibility checks, responsive checks, or whenever a user-facing page or component is changed.
+description: Review this Uni-app SMIS H5 and cross-platform UI against current web interface, accessibility, typography, touch, safe-area, responsive-layout, content, and performance guidelines. Use for UI reviews, UX audits, accessibility checks, responsive checks, or whenever a user-facing page or component is changed.
 ---
 
 # Web Interface Guidelines

@@ -16,7 +16,7 @@
 
 ## 项目定位
 
-Art Supabase SMIS 移动端是 `art-supabase-pro` 中 SMIS（安全生产管理）模块的一线移动工作台，基于 uni-app、Vue 3、TypeScript、Pinia、Wot Design Uni 与 Supabase 构建，同时支持 H5 和微信小程序。
+Art Supabase SMIS 移动端是 `art-supabase-pro` 中 SMIS（安全生产管理）模块的一线移动工作台，基于 uni-app、Vue 3、TypeScript、Pinia、Wot UI v2 (@wot-ui/ui) 与 Supabase 构建，同时支持 H5 和微信小程序。
 
 移动端不独立维护另一套安全生产数据。它与 Web 管理端共用账号、员工档案、组织权限、系统字典和业务状态，通过受控服务端 RPC 读取当前人员可见的任务，并将巡查结果、现场照片、整改证据与验收结论同步回同一条安全闭环。
 
@@ -86,3 +86,27 @@ H5 生产文件输出到 `docs/`，可直接用于静态站点发布。微信小
 
 - [`art-supabase-pro`](https://gitee.com/wangyanghub/art-supabase-pro)：统一认证、租户、权限、字典及 SMIS Web 管理端。
 - [`supabase-mobile-tms-driver`](https://gitee.com/wangyanghub/supabase-mobile-tms-driver)：同技术栈的 TMS 司机移动执行端。
+
+## 公共架构与验收
+
+基础架构与 `supabase-mobile-tms-driver` 对齐：Uni-app/Vue 3/Pinia、Wot UI v2、业务组件目录、主题预设、字体图标、H5 启动页和 GitHub Pages 构建。保留 SMIS 业务 RPC、认证提供方、数据模型、位置采集、员工档案和五个主导航入口。
+
+- `src/components/business`：共享业务组件与图标清单。
+- `src/composables/usePageTheme.ts` / `src/stores/theme.ts`：主题选择与持久化，使用独立的 SMIS 存储键。
+- `src/styles/global.scss` / `presets.scss`：司机端公共视觉体系；`theme.scss` 补充 SMIS 业务布局。
+- `.agents/skills`：同步司机端全部 22 个 skills，项目质量规则已适配 SMIS。
+
+```powershell
+pnpm icons:build
+pnpm typecheck
+pnpm build:h5
+pnpm build:mp-weixin
+pnpm audit:visual
+pnpm audit:interactions
+```
+
+浏览器审计需要运行 H5 开发服务与本机 Chrome。审计脚本在浏览器内拦截 Supabase 请求，使用独立模拟会话和长文本数据，检查 16 个页面在 320/393/520/768px 宽度下的截图、空状态和错误状态；结果位于忽略提交的 `artifacts/visual-audit`。这些检查不向线上数据库写入数据，也不替代真实账号的权限、定位、上传和业务提交联调。
+
+### 客户端连接配置
+
+仓库 `.env` 提供本项目 URL 与客户端公开 anon key，开发和打包会直接加载；`.env.example` 仅作为配置模板，不会被 Vite 自动加载。可通过被 Git 忽略的 `.env.local` 覆盖本地配置。不要将服务端密钥放入任何 `VITE_` 变量。修改配置后需要重新启动开发服务或重新打包部署。

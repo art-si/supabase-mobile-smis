@@ -1,2 +1,4 @@
-<script setup lang="ts">import SmisTaskDetailView from '@/components/SmisTaskDetailView.vue'</script>
-<template><SmisTaskDetailView kind="inspection"/></template>
+<script setup lang="ts">
+import SmisTaskDetailView from '@/components/business/SmisTaskDetailView.vue'
+</script>
+<template><SmisTaskDetailView kind="inspection" /></template>

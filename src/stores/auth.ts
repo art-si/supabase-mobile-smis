@@ -2,52 +2,137 @@ import { defineStore } from 'pinia'
 import { passwordLogin, refreshToken, signOut } from '@/api/supabase'
 import type { Session } from '@/api/types'
 import { useDictionaryStore } from './dictionary'
+import { useProfileStore } from './profile'
 
 const STORAGE_KEY = 'smis-mobile-session'
-let refreshPromise: Promise<void> | null = null
+const LOGIN_URL = '/pages/login/index'
+const LOGIN_ROUTE = 'pages/login/index'
 
-function normalize(session: Session | null) {
-  if (session && !session.expires_at && session.expires_in) session.expires_at = Math.floor(Date.now() / 1000) + session.expires_in
+let refreshSessionPromise: Promise<void> | null = null
+
+interface AuthState {
+  session: Session | null
+  booted: boolean
+}
+
+function normalizeSession(session: Session | null) {
+  if (!session) return null
+  if (!session.expires_at && session.expires_in) {
+    session.expires_at = Math.floor(Date.now() / 1000) + session.expires_in
+  }
   return session
 }
 
+function isLoginPage() {
+  const pages = getCurrentPages()
+  return pages[pages.length - 1]?.route === LOGIN_ROUTE
+}
+
+function redirectToLogin() {
+  if (isLoginPage()) return
+  uni.reLaunch({ url: LOGIN_URL })
+}
+
 export const useAuthStore = defineStore('auth', {
-  state: () => ({ session: null as Session | null, booted: false }),
+  state: (): AuthState => ({
+    session: null,
+    booted: false
+  }),
   getters: {
     token: (state) => state.session?.access_token || '',
     user: (state) => state.session?.user || null,
     isLoggedIn: (state) => Boolean(state.session?.access_token),
-    isTokenExpired: (state) => !state.session?.expires_at || state.session.expires_at * 1000 - Date.now() < 180000
+    isTokenExpired: (state) => {
+      if (!state.session?.access_token) return false
+      const expiresAt = state.session?.expires_at
+      if (!expiresAt) return true
+      return expiresAt * 1000 - Date.now() < 180_000
+    }
   },
   actions: {
     hydrate() {
       if (this.booted) return
       const cached = uni.getStorageSync(STORAGE_KEY)
-      try { this.session = normalize(cached ? (typeof cached === 'string' ? JSON.parse(cached) : cached) : null) } catch { this.session = null }
+      if (cached) {
+        try {
+          this.session = normalizeSession(typeof cached === 'string' ? JSON.parse(cached) : cached)
+        } catch {
+          this.session = null
+        }
+      }
       this.booted = true
     },
-    persist() { this.session ? uni.setStorageSync(STORAGE_KEY, JSON.stringify(this.session)) : uni.removeStorageSync(STORAGE_KEY) },
-    clear(redirect = false) {
-      this.session = null; this.persist(); useDictionaryStore().clear()
-      if (redirect) uni.reLaunch({ url: '/pages/login/index' })
+    persist() {
+      if (this.session) {
+        uni.setStorageSync(STORAGE_KEY, JSON.stringify(this.session))
+      } else {
+        uni.removeStorageSync(STORAGE_KEY)
+      }
+    },
+    clearSession(redirect = false) {
+      useDictionaryStore().clear()
+      useProfileStore().clear()
+      this.session = null
+      this.persist()
+      if (redirect) redirectToLogin()
+    },
+    async ensureValidSession(redirect = true) {
+      this.hydrate()
+      if (!this.token) {
+        this.clearSession(redirect)
+        return false
+      }
+      if (!this.isTokenExpired) return true
+
+      try {
+        await this.refreshSession(redirect)
+        return Boolean(this.token)
+      } catch {
+        return false
+      }
     },
     async login(account: string, password: string) {
-      this.session = normalize(await passwordLogin(account, password)); this.persist()
+      this.session = normalizeSession(await passwordLogin(account.trim(), password))
+      this.persist()
       await useDictionaryStore().load(this.token, true)
+      return this.session
     },
-    async ensureValidSession() {
-      this.hydrate()
-      if (!this.token) { this.clear(true); return false }
-      if (!this.isTokenExpired) return true
-      if (!refreshPromise) refreshPromise = (async () => {
+    async refreshSession(redirect = true) {
+      if (refreshSessionPromise) return refreshSessionPromise
+
+      if (!this.session?.refresh_token) {
+        this.clearSession(redirect)
+        throw new Error('登录已过期，请重新登录')
+      }
+
+      const currentRefreshToken = this.session.refresh_token
+      refreshSessionPromise = (async () => {
         try {
-          if (!this.session?.refresh_token) throw new Error('登录已过期')
-          this.session = normalize(await refreshToken(this.session.refresh_token)); this.persist()
+          const nextSession = normalizeSession(await refreshToken(currentRefreshToken))
+          if (!nextSession?.access_token) throw new Error('登录已过期，请重新登录')
+          if (!this.session || this.session.refresh_token !== currentRefreshToken) return
+          this.session = nextSession
+          this.persist()
           await useDictionaryStore().load(this.token, true)
-        } catch (error) { this.clear(true); throw error } finally { refreshPromise = null }
+        } catch (error) {
+          this.clearSession(redirect)
+          throw error
+        } finally {
+          refreshSessionPromise = null
+        }
       })()
-      try { await refreshPromise; return true } catch { return false }
+
+      return refreshSessionPromise
     },
-    async logout() { try { if (this.token) await signOut(this.token) } finally { this.clear(true) } }
+    async logout() {
+      if (this.session?.access_token) {
+        try {
+          await signOut(this.session.access_token)
+        } catch {
+          // Local logout still clears stale credentials if remote logout is unavailable.
+        }
+      }
+      this.clearSession(true)
+    }
   }
 })

@@ -1,0 +1,1 @@
+import{st as t,tt as s,vt as a}from"./index-BFBktu-S.js";import{t as i}from"./SmisTaskDetailView.BfevM6M1.js";var e=t({__name:"detail",setup:t=>(t,e)=>(a(),s(i,{kind:"inspection"}))});export{e as default};
