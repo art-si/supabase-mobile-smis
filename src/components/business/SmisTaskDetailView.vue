@@ -4,7 +4,7 @@ import SmisLoadError from '@/components/business/SmisLoadError.vue'
 import { usePageTheme } from '@/composables/usePageTheme'
 import { computed, ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
-import SmisTopBar from './SmisTopBar.vue'
+import MobileTopBar from '@mobile-core/components/MobileTopBar.vue'
 import SmisStatusTag from './SmisStatusTag.vue'
 import SmisIcon from './SmisIcon.vue'
 import SmisTextareaField from './SmisTextareaField.vue'
@@ -102,7 +102,7 @@ onLoad((query) => load(String(query?.id || '')))
 <template>
 <wd-config-provider :theme="themeName">
   <view class="page-shell">
-    <SmisTopBar :title="kind === 'risk' ? '风险巡查执行' : '隐患排查执行'" :subtitle="detail?.taskNo" show-back />
+    <MobileTopBar capsule="none" :title="kind === 'risk' ? '风险巡查执行' : '隐患排查执行'" :subtitle="detail?.taskNo" show-back />
     <view class="page-body detail-body">
       <SmisLoadError v-if="loadError" :message="loadError" @retry="load(currentId)" />
       <view v-if="loading" class="loading"><wd-loading color="var(--smis-primary)" /></view>

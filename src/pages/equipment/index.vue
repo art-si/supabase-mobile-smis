@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import SmisMetricGrid from '@/components/business/SmisMetricGrid.vue'
+import MobileMetricGrid from '@mobile-core/components/MobileMetricGrid.vue'
 import SmisLoadError from '@/components/business/SmisLoadError.vue'
 
 import { usePageTheme } from '@/composables/usePageTheme'
 import { computed, ref } from 'vue'
 import { onLoad, onPullDownRefresh, onReachBottom, onShow } from '@dcloudio/uni-app'
-import SmisTopBar from '@/components/business/SmisTopBar.vue'
+import MobileTopBar from '@mobile-core/components/MobileTopBar.vue'
 import SmisIcon from '@/components/business/SmisIcon.vue'
 import SmisStatusTag from '@/components/business/SmisStatusTag.vue'
 import SmisEmpty from '@/components/business/SmisEmpty.vue'
@@ -66,10 +66,10 @@ onReachBottom(() => { if (!finished.value) void load(false) })
 <template>
 <wd-config-provider :theme="themeName">
   <view class="page-shell">
-    <SmisTopBar title="设备台账" eyebrow="EQUIPMENT LEDGER" subtitle="状态、位置与检验周期" show-back />
+    <MobileTopBar capsule="none" title="设备台账" eyebrow="EQUIPMENT LEDGER" subtitle="状态、位置与检验周期" show-back />
     <view class="page-body ledger-body">
       <SmisLoadError v-if="loadError" :message="loadError" @retry="load()" />
-      <SmisMetricGrid :items="[{ label: '设备总数', value: overview.total }, { label: '在用', value: overview.inUse }, { label: '临近检验', value: overview.dueSoon, tone: 'warning' }]" />
+      <MobileMetricGrid :items="[{ label: '设备总数', value: overview.total }, { label: '在用', value: overview.inUse }, { label: '临近检验', value: overview.dueSoon, tone: 'warning' }]" />
 
       <SmisSearchBar v-model="keyword" class="ledger-search" placeholder="设备编号 / 名称 / 型号" action-label="查询" :disabled="loading" @search="load(true)" />
 

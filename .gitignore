@@ -12,3 +12,4 @@ artifacts/
 # Generated from the Mobile Pro main repository
 /src/_mobile-core/
 /src/static/fonts/NotoSansSC-OFL.txt
+/src/static/fonts/BootstrapIcons-MIT.txt

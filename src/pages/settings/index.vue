@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import SmisTopBar from '@/components/business/SmisTopBar.vue'
+import MobileTopBar from '@mobile-core/components/MobileTopBar.vue'
 import { usePageTheme } from '@/composables/usePageTheme'
 import { THEME_PRESETS, type ThemePresetId } from '@mobile-core/theme'
 
@@ -15,7 +15,7 @@ function selectTheme(preset: ThemePresetId) {
 <template>
 <wd-config-provider :theme="themeName">
   <view class="settings-page page">
-    <SmisTopBar title="外观设置" eyebrow="偏好设置" subtitle="调整安全生产移动端的显示方式" show-back />
+    <MobileTopBar capsule="none" title="外观设置" eyebrow="偏好设置" subtitle="调整安全生产移动端的显示方式" show-back />
     <scroll-view scroll-y class="settings-page__scroll">
       <view class="settings-page__content">
         <view class="settings-card card">

@@ -7,7 +7,7 @@ import { onLoad } from '@dcloudio/uni-app'
 import SmisEvidenceUpload from '@/components/business/SmisEvidenceUpload.vue'
 import SmisIcon from '@/components/business/SmisIcon.vue'
 import SmisStatusTag from '@/components/business/SmisStatusTag.vue'
-import SmisTopBar from '@/components/business/SmisTopBar.vue'
+import MobileTopBar from '@mobile-core/components/MobileTopBar.vue'
 import SmisTextareaField from '@/components/business/SmisTextareaField.vue'
 import { useAuthStore } from '@/stores/auth'
 import { getHazard, submitHazardAcceptance, submitHazardRectification } from '@/api/smis'
@@ -90,7 +90,7 @@ onLoad((query) => load(String(query?.id || '')))
 <template>
 <wd-config-provider :theme="themeName">
   <view class="page-shell">
-    <SmisTopBar title="隐患详情" :subtitle="detail?.hazardNo || '隐患治理闭环'" show-back />
+    <MobileTopBar capsule="none" title="隐患详情" :subtitle="detail?.hazardNo || '隐患治理闭环'" show-back />
     <view class="page-body detail-body">
       <SmisLoadError v-if="loadError" :message="loadError" @retry="load(currentId)" />
       <view v-if="loading" class="loading" aria-live="polite"><wd-loading color="var(--smis-primary)" /></view>

@@ -1,42 +1,16 @@
 <script setup lang="ts">
-import { onLaunch, onShow } from '@dcloudio/uni-app'
+import { useStartupData } from '@mobile-core/startup'
 import { useAuthStore } from '@/stores/auth'
 import { useDictionaryStore } from '@/stores/dictionary'
 
-let startupPromise: Promise<void> | null = null
-
-function loadStartupData() {
-  if (startupPromise) return startupPromise
-
-  startupPromise = (async () => {
-    const auth = useAuthStore()
-    const isValid = await auth.ensureValidSession()
-    if (isValid) await useDictionaryStore().load(auth.token)
-  })()
-    .catch((error) => {
-      console.warn('startup data loading failed', error)
-    })
-    .finally(() => {
-      startupPromise = null
-    })
-
-  return startupPromise
-}
-
-onLaunch(() => {
-  void loadStartupData()
-})
-
-onShow(() => {
-  void loadStartupData()
-})
+useStartupData(useAuthStore, useDictionaryStore)
 </script>
 
 <style lang="scss">
 @use '@mobile-core/styles/global.scss' as mobile;
 @use './styles/theme.scss' as smis;
 
-@include mobile.apply('smis', 'SMIS Icons', '~@/static/icons/smis-icons.ttf');
+@include mobile.apply('smis');
 @include smis.apply();
 
 page {

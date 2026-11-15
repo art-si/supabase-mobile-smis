@@ -12,7 +12,7 @@ import SmisFormSection from '@/components/business/SmisFormSection.vue'
 import SmisIcon from '@/components/business/SmisIcon.vue'
 import SmisLocationField from '@/components/business/SmisLocationField.vue'
 import SmisTextareaField from '@/components/business/SmisTextareaField.vue'
-import SmisTopBar from '@/components/business/SmisTopBar.vue'
+import MobileTopBar from '@mobile-core/components/MobileTopBar.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useDictionaryStore } from '@/stores/dictionary'
 import { useProfileStore } from '@/stores/profile'
@@ -134,7 +134,7 @@ onShow(load)
 <template>
 <wd-config-provider :theme="themeName">
   <view class="page-shell report-page">
-    <SmisTopBar title="现场随手拍" eyebrow="QUICK HAZARD REPORT" subtitle="拍照留证，隐患直达闭环" show-back />
+    <MobileTopBar capsule="none" title="现场随手拍" eyebrow="QUICK HAZARD REPORT" subtitle="拍照留证，隐患直达闭环" show-back />
 
     <view class="page-body report-body">
       <SmisLoadError v-if="loadError" :message="loadError" @retry="load()" />

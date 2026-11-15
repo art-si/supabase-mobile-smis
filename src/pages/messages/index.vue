@@ -5,7 +5,7 @@ import { usePageTheme } from '@/composables/usePageTheme'
 import { computed, ref } from 'vue'
 import { onPullDownRefresh, onReachBottom, onShow } from '@dcloudio/uni-app'
 import SmisBottomNav from '@/components/business/SmisBottomNav.vue'
-import SmisTopBar from '@/components/business/SmisTopBar.vue'
+import MobileTopBar from '@mobile-core/components/MobileTopBar.vue'
 import SmisIcon from '@/components/business/SmisIcon.vue'
 import SmisListFooter from '@/components/business/SmisListFooter.vue'
 import { useAuthStore } from '@/stores/auth'
@@ -79,7 +79,7 @@ onReachBottom(() => { if (!finished.value) void load(false) })
 <template>
 <wd-config-provider :theme="themeName">
   <view class="page-shell">
-    <SmisTopBar title="安全消息" eyebrow="SAFETY NOTICE" subtitle="只聚焦需要你处理的变化" />
+    <MobileTopBar capsule="none" title="安全消息" eyebrow="SAFETY NOTICE" subtitle="只聚焦需要你处理的变化" />
     <view class="page-body message-body">
       <SmisLoadError v-if="loadError" :message="loadError" @retry="load()" />
       <view v-if="loading" class="state"><wd-loading color="var(--smis-primary)" /><text>正在读取提醒…</text></view>

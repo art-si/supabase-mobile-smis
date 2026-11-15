@@ -93,7 +93,7 @@ H5 生产文件输出到 `docs/`，可直接用于静态站点发布。微信小
 
 主仓基于司机端维护三端共用的主题、字体、按钮和表单样式。SMIS 在本仓维护业务 RPC、认证提供方、数据模型、位置采集、员工档案和五个主导航入口。
 
-- `src/components/business`：共享业务组件与图标清单。
+- `src/components/business`：SMIS 业务组件。三端共用的图标清单和字库由主仓维护。
 - `src/composables/usePageTheme.ts` / `src/stores/theme.ts`：主题选择与持久化，使用独立的 SMIS 存储键。
 - `src/styles/theme.scss` 补充 SMIS 的业务布局，基础样式从主仓的 `packages/mobile-core/src/styles` 加载。
 - `.agents/skills`：同步司机端全部 22 个 skills，项目质量规则已适配 SMIS。

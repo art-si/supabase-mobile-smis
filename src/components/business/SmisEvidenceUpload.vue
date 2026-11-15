@@ -2,7 +2,7 @@
 import { ref, watch } from 'vue'
 import SmisIcon from './SmisIcon.vue'
 import { getErrorMessage, uploadFile } from '@/api/supabase'
-import { chooseImages } from '@/utils/file'
+import { chooseImages } from '@mobile-core/files'
 
 type EvidenceStatus = 'ready' | 'uploading' | 'failed'
 
@@ -95,7 +95,7 @@ async function addPhotos() {
   choosing.value = true
   updateBusyState()
   try {
-    const paths = await chooseImages(props.max - items.value.length)
+    const paths = await chooseImages(props.max - items.value.length, '选择照片失败')
     if (!paths.length) return
     const additions: EvidenceItem[] = paths.map((path) => ({
       id: `local-${nextId++}`,

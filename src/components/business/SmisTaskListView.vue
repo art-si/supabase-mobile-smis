@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import SmisMetricGrid from '@/components/business/SmisMetricGrid.vue'
+import MobileMetricGrid from '@mobile-core/components/MobileMetricGrid.vue'
 import SmisLoadError from '@/components/business/SmisLoadError.vue'
 
 import { usePageTheme } from '@/composables/usePageTheme'
 import { computed, ref } from 'vue'
 import { onPullDownRefresh, onReachBottom, onShow } from '@dcloudio/uni-app'
-import SmisTopBar from './SmisTopBar.vue'
+import MobileTopBar from '@mobile-core/components/MobileTopBar.vue'
 import SmisTaskCard from './SmisTaskCard.vue'
 import SmisEmpty from './SmisEmpty.vue'
 import SmisSearchBar from './SmisSearchBar.vue'
@@ -96,7 +96,7 @@ onReachBottom(() => { if (!finished.value) void load(false) })
 <template>
 <wd-config-provider :theme="themeName">
   <view class="page-shell">
-    <SmisTopBar
+    <MobileTopBar capsule="none"
       :title="kind === 'risk' ? '风险巡查' : '隐患排查'"
       :eyebrow="kind === 'risk' ? 'RISK CONTROL' : 'FIELD INSPECTION'"
       :subtitle="kind === 'risk' ? '分级管控，责任到人' : '逐项检查，异常转隐患'"
@@ -104,7 +104,7 @@ onReachBottom(() => { if (!finished.value) void load(false) })
     />
     <view class="page-body task-body">
       <SmisLoadError v-if="loadError" :message="loadError" @retry="load()" />
-      <SmisMetricGrid :items="[{ label: '任务总数', value: overview.total }, { label: '执行中', value: overview.inProgress }, { label: '已逾期', value: overview.overdue, tone: 'danger' }]" />
+      <MobileMetricGrid :items="[{ label: '任务总数', value: overview.total }, { label: '执行中', value: overview.inProgress }, { label: '已逾期', value: overview.overdue, tone: 'danger' }]" />
 
       <view class="task-tools surface-card">
         <SmisSearchBar

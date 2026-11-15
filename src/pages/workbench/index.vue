@@ -4,7 +4,7 @@ import { computed, ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import SmisBottomNav from '@/components/business/SmisBottomNav.vue'
 import SmisIcon from '@/components/business/SmisIcon.vue'
-import SmisTopBar from '@/components/business/SmisTopBar.vue'
+import MobileTopBar from '@mobile-core/components/MobileTopBar.vue'
 import SmisSearchBar from '@/components/business/SmisSearchBar.vue'
 import { useAuthStore } from '@/stores/auth'
 
@@ -32,7 +32,7 @@ onShow(() => useAuthStore().ensureValidSession())
 </script>
 <template>
 <wd-config-provider :theme="themeName">
-  <view class="page-shell"><SmisTopBar title="安全工作台" eyebrow="SAFETY WORKBENCH" subtitle="任务、台账与现场闭环" />
+  <view class="page-shell"><MobileTopBar capsule="none" title="安全工作台" eyebrow="SAFETY WORKBENCH" subtitle="任务、台账与现场闭环" />
     <view class="page-body workbench-body">
       <SmisSearchBar v-model="query" placeholder="搜索应用" />
       <view v-for="group in filteredGroups" :key="group.title" class="app-group"><view class="app-group__head"><view><text>{{ group.eyebrow }}</text><text class="strong">{{ group.title }}</text></view><view class="i" /></view><view class="app-grid"><button v-for="item in group.items" :key="item.title" class="app" :class="{ 'app--disabled': !item.available }" @tap="open(item)"><view class="app__icon" :class="`app__icon--${item.tone}`"><SmisIcon :name="item.icon" size="46rpx" /></view><text v-if="!item.available" class="app__availability">Web 端</text><view class="app__copy"><text>{{ item.title }}</text><text class="small">{{ item.subtitle }}</text></view></button></view></view>

@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import SmisMetricGrid from '@/components/business/SmisMetricGrid.vue'
+import MobileMetricGrid from '@mobile-core/components/MobileMetricGrid.vue'
 import SmisLoadError from '@/components/business/SmisLoadError.vue'
 
 import { usePageTheme } from '@/composables/usePageTheme'
 import { computed, ref } from 'vue'
 import { onPullDownRefresh, onReachBottom, onShow } from '@dcloudio/uni-app'
-import SmisTopBar from '@/components/business/SmisTopBar.vue'
+import MobileTopBar from '@mobile-core/components/MobileTopBar.vue'
 import SmisStatusTag from '@/components/business/SmisStatusTag.vue'
 import SmisEmpty from '@/components/business/SmisEmpty.vue'
 import SmisIcon from '@/components/business/SmisIcon.vue'
@@ -77,10 +77,10 @@ onReachBottom(() => { if (!finished.value) void load(false) })
 <template>
 <wd-config-provider :theme="themeName">
   <view class="page-shell">
-    <SmisTopBar title="隐患治理" eyebrow="HAZARD CLOSURE" subtitle="从上报到验收，全程可追溯" show-back />
+    <MobileTopBar capsule="none" title="隐患治理" eyebrow="HAZARD CLOSURE" subtitle="从上报到验收，全程可追溯" show-back />
     <view class="page-body hazard-body">
       <SmisLoadError v-if="loadError" :message="loadError" @retry="load()" />
-      <SmisMetricGrid :items="[{ label: '全部隐患', value: overview.total }, { label: '整改中', value: overview.rectifying }, { label: '待验收', value: overview.pendingAcceptance, tone: 'warning' }]" />
+      <MobileMetricGrid :items="[{ label: '全部隐患', value: overview.total }, { label: '整改中', value: overview.rectifying }, { label: '待验收', value: overview.pendingAcceptance, tone: 'warning' }]" />
 
       <view class="hazard-tools surface-card">
         <SmisSearchBar v-model="keyword" placeholder="隐患编号 / 位置" action-label="查询" :disabled="loading" embedded @search="load(true)" />
