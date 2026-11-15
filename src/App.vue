@@ -33,7 +33,11 @@ onShow(() => {
 </script>
 
 <style lang="scss">
-@use './styles/global.scss';
+@use '@mobile-core/styles/global.scss' as mobile;
+@use './styles/theme.scss' as smis;
+
+@include mobile.apply('smis', 'SMIS Icons', '~@/static/icons/smis-icons.ttf');
+@include smis.apply();
 
 page {
   min-height: 100%;

@@ -48,6 +48,8 @@ Art Supabase SMIS 移动端是 `art-supabase-pro` 中 SMIS（安全生产管理�
 
 ## 快速开始
 
+开发和构建使用 [supabase-mobile-pro](https://gitee.com/art-si/supabase-mobile-pro) 的公共样式。可在主仓的 `modules/` 中开发。单独检出时，在同一级放好对应版本的主仓，或用 `MOBILE_PRO_ROOT` 指向主仓目录。
+
 建议使用 Node.js 22 与 pnpm。
 
 ```powershell
@@ -89,11 +91,11 @@ H5 生产文件输出到 `docs/`，可直接用于静态站点发布。微信小
 
 ## 公共架构与验收
 
-基础架构与 `supabase-mobile-tms-driver` 对齐：Uni-app/Vue 3/Pinia、Wot UI v2、业务组件目录、主题预设、字体图标、H5 启动页和 GitHub Pages 构建。保留 SMIS 业务 RPC、认证提供方、数据模型、位置采集、员工档案和五个主导航入口。
+主仓基于司机端维护三端共用的主题、字体、按钮和表单样式。SMIS 在本仓维护业务 RPC、认证提供方、数据模型、位置采集、员工档案和五个主导航入口。
 
 - `src/components/business`：共享业务组件与图标清单。
 - `src/composables/usePageTheme.ts` / `src/stores/theme.ts`：主题选择与持久化，使用独立的 SMIS 存储键。
-- `src/styles/global.scss` / `presets.scss`：司机端公共视觉体系；`theme.scss` 补充 SMIS 业务布局。
+- `src/styles/theme.scss` 补充 SMIS 的业务布局，基础样式从主仓的 `packages/mobile-core/src/styles` 加载。
 - `.agents/skills`：同步司机端全部 22 个 skills，项目质量规则已适配 SMIS。
 
 ```powershell

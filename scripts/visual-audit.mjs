@@ -28,7 +28,11 @@ try {
       await page.goto(`${base}#/pages/${route}${route.endsWith('detail') ? '?id=audit-task' : ''}`)
       await page.waitForSelector('uni-page-body')
       await page.waitForTimeout(500)
-      if (!page.url().includes(`/pages/${route}`)) throw new Error(`Expected ${route}, opened ${page.url()}`)
+      if (route === 'login/index') {
+        await page.getByText('登录', { exact: true }).waitFor()
+      } else if (!page.url().includes(`/pages/${route}`)) {
+        throw new Error(`Expected ${route}, opened ${page.url()}`)
+      }
       await page.evaluate(() => document.fonts.ready)
       const name = route.replace('/', '-')
       await page.screenshot({ path: resolve(output, `${width}-${name}-top.png`) })

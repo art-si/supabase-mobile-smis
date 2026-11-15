@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { chromium } from 'playwright'
-import { installFixtures, seedSession } from './audit-fixtures.mjs'
+import { installFixtures, seedSession, session } from './audit-fixtures.mjs'
 const base = process.env.SMIS_AUDIT_BASE || 'http://127.0.0.1:5173/'
 const browser = await chromium.launch({ channel: 'chrome', headless: true })
 try {
@@ -71,10 +71,12 @@ try {
   const mapContext = await browser.newContext({ viewport: { width: 393, height: 852 }, permissions: ['geolocation'], geolocation: { longitude: 114.196188, latitude: 30.509834 } })
   const mapPage = await mapContext.newPage()
   await installFixtures(mapPage)
+  await mapPage.addInitScript(value => {
+    localStorage.setItem('smis-mobile-session', JSON.stringify({ type: 'string', data: JSON.stringify(value) }))
+  }, session)
   let mapUnavailable = true
   await mapPage.route('https://webapi.amap.com/maps**', route => mapUnavailable ? route.abort() : route.fulfill({ contentType: 'application/javascript', body: `window.AMap = { Geocoder: class { getAddress(position, callback) { callback('complete', { regeocode: { formattedAddress: '武汉市现场定位测试点' } }) } }, Marker: class {}, Map: class { constructor(id) { this.element = document.getElementById(id); this.element.dataset.mapReady = 'true' } add() {} on(event, callback) { if (event === 'complete') setTimeout(callback, 20) } off() {} destroy() { delete this.element.dataset.mapReady } } }` }))
   await mapPage.goto(`${base}#/pages/quick-report/index`)
-  await seedSession(mapPage); await mapPage.reload()
   await mapPage.locator('.location-field__button').click()
   await mapPage.getByText('重新加载地图', { exact: true }).waitFor()
   assert.match(await mapPage.locator('.location-field__coordinates').innerText(), /114\./, 'Map failure must preserve captured coordinates')

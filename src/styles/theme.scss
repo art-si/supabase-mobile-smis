@@ -1,126 +1,155 @@
-// Business additions to the shared driver design system.
-:root,
-page,
-.wd-root-portal {
-  --smis-safety: #f59e0b;
-  --smis-warning: var(--smis-orange);
-  --smis-danger: var(--smis-red);
-  --smis-success: var(--smis-green);
-  --smis-info: var(--smis-text-secondary);
-  --smis-line-soft: rgba(220, 227, 238, 0.72);
-  --smis-control-bg: var(--smis-panel);
-  --smis-control-border: var(--smis-line);
-  --smis-radius: var(--smis-radius-lg);
-  --smis-shadow-card: var(--smis-shadow-sm);
-  --smis-shadow: var(--smis-shadow-sm);
-  --smis-nav-clearance: calc(var(--smis-nav-height) + 48rpx + env(safe-area-inset-bottom));
-}
-
-.page,
-.page-shell {
-  min-height: 100vh;
-  min-height: 100dvh;
-  color: var(--smis-text);
-  background: var(--smis-bg);
-  overflow-x: hidden;
-}
-
-.page-body {
-  width: 100%;
-  padding: 32rpx 28rpx var(--smis-nav-clearance);
-}
-
-.safe-bottom {
-  padding-bottom: calc(24rpx + env(safe-area-inset-bottom));
-}
-
-.card,
-.surface-card {
-  position: relative;
-  min-width: 0;
-  overflow: hidden;
-  background: var(--smis-surface);
-  border: 1rpx solid rgba(220, 227, 238, 0.88);
-  border-radius: var(--smis-radius-lg);
-  box-shadow: var(--smis-shadow-card);
-}
-
-.section-title {
-  color: var(--smis-text);
-  font-size: clamp(15px, 30rpx, 17px);
-  font-weight: 700;
-  line-height: 1.25;
-  letter-spacing: -0.3rpx;
-}
-
-.section-subtitle {
-  margin-top: 8rpx;
-  color: var(--smis-text-secondary);
-  font-size: 13px;
-  line-height: 1.5;
-}
-
-.section-eyebrow {
-  display: block;
-  margin-bottom: 8rpx;
-  color: var(--smis-primary);
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 2rpx;
-}
-
-.tap-target {
-  min-width: max(88rpx, 44px);
-  min-height: max(88rpx, 44px);
-}
-
-.line-clamp-2 {
-  display: -webkit-box;
-  overflow: hidden;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-}
-
-.pressable {
-  transition:
-    transform 160ms ease,
-    box-shadow 160ms ease,
-    opacity 160ms ease;
-}
-
-.pressable:active {
-  opacity: 0.88;
-  transform: scale(0.985);
-}
-
-.surface-card,
-button.card {
-  transition:
-    transform 150ms cubic-bezier(0.23, 1, 0.32, 1),
-    box-shadow 150ms cubic-bezier(0.23, 1, 0.32, 1),
-    opacity 150ms cubic-bezier(0.23, 1, 0.32, 1);
-}
-
-button.surface-card:active,
-button.card:active {
-  transform: scale(0.985);
-  box-shadow: 0 5rpx 16rpx rgba(35, 45, 77, 0.07);
-}
-
-@media screen and (min-width: 520px) {
-  .page,
-  .page-shell {
-    max-width: 520px;
-    margin: 0 auto;
-    box-shadow: 0 0 80rpx rgba(34, 45, 74, 0.1);
+@mixin apply() {
+  // Business additions to the shared driver design system.
+  :root,
+  page,
+  .wd-root-portal {
+    --smis-text-muted: var(--smis-muted);
+    --smis-nav-height: max(132rpx, 70px);
+    --smis-safety: #f59e0b;
+    --smis-warning: var(--smis-orange);
+    --smis-danger: var(--smis-red);
+    --smis-success: var(--smis-green);
+    --smis-info: var(--smis-text-secondary);
+    --smis-line-soft: rgba(220, 227, 238, 0.72);
+    --smis-control-bg: var(--smis-panel);
+    --smis-control-border: var(--smis-line);
+    --smis-radius: var(--smis-radius-lg);
+    --smis-shadow-card: var(--smis-shadow-sm);
+    --smis-shadow: var(--smis-shadow-sm);
+    --smis-nav-clearance: calc(var(--smis-nav-height) + 48rpx + env(safe-area-inset-bottom));
   }
 
-  .page .nav,
-  .page-shell .nav,
-  .bottom-nav {
-    left: 50%;
-    right: auto;
-    width: min(calc(100vw - 36rpx), 484px);
-    transform: translateX(-50%);
+  .page,
+  .page-shell {
+    min-height: 100vh;
+    min-height: 100dvh;
+    color: var(--smis-text);
+    background: var(--smis-bg);
+    overflow-x: hidden;
+  }
+
+  .page-body {
+    width: 100%;
+    padding: 32rpx 28rpx var(--smis-nav-clearance);
+  }
+
+  .safe-bottom {
+    padding-bottom: calc(24rpx + env(safe-area-inset-bottom));
+  }
+
+  .card,
+  .surface-card {
+    position: relative;
+    min-width: 0;
+    overflow: hidden;
+    background: var(--smis-surface);
+    border: 1rpx solid rgba(220, 227, 238, 0.88);
+    border-radius: var(--smis-radius-lg);
+    box-shadow: var(--smis-shadow-card);
+  }
+
+  .section-title {
+    color: var(--smis-text);
+    font-size: clamp(15px, 30rpx, 17px);
+    font-weight: 700;
+    line-height: 1.25;
+    letter-spacing: -0.3rpx;
+  }
+
+  .section-subtitle {
+    margin-top: 8rpx;
+    color: var(--smis-text-secondary);
+    font-size: 13px;
+    line-height: 1.5;
+  }
+
+  .section-eyebrow {
+    display: block;
+    margin-bottom: 8rpx;
+    color: var(--smis-primary);
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 2rpx;
+  }
+
+  .tap-target {
+    min-width: max(88rpx, 44px);
+    min-height: max(88rpx, 44px);
+  }
+
+  .line-clamp-2 {
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  .pressable {
+    transition:
+      transform 160ms ease,
+      box-shadow 160ms ease,
+      opacity 160ms ease;
+  }
+
+  .pressable:active {
+    opacity: 0.88;
+    transform: scale(0.985);
+  }
+
+  .surface-card,
+  button.card {
+    transition:
+      transform 150ms cubic-bezier(0.23, 1, 0.32, 1),
+      box-shadow 150ms cubic-bezier(0.23, 1, 0.32, 1),
+      opacity 150ms cubic-bezier(0.23, 1, 0.32, 1);
+  }
+
+  button.surface-card:active,
+  button.card:active {
+    transform: scale(0.985);
+    box-shadow: 0 5rpx 16rpx rgba(35, 45, 77, 0.07);
+  }
+
+  @media screen and (min-width: 520px) {
+    .page,
+    .page-shell {
+      max-width: 520px;
+      margin: 0 auto;
+      box-shadow: 0 0 80rpx rgba(34, 45, 74, 0.1);
+    }
+
+    .page .nav,
+    .page-shell .nav,
+    .bottom-nav {
+      left: 50%;
+      right: auto;
+      width: min(calc(100vw - 36rpx), 484px);
+      transform: translateX(-50%);
+    }
+  }
+
+  // Wot v2 slot contents need a shared row layout for business icon actions.
+  .wd-button__text { display: flex; align-items: center; justify-content: center; gap: 10rpx; min-width: 0; line-height: 1.2; }
+  .page-shell .result-button,
+  .page-shell .location-field__button { min-height: var(--smis-control-height) !important; height: var(--smis-control-height) !important; }
+  .page-shell .smis-search { height: 52px; }
+
+  .page-shell .calendar__head button { min-width: 44px; min-height: 44px; }
+  .page-shell .identity > view,
+  .page-shell .facts > view,
+  .page-shell .profile-hero__copy,
+  .page-shell .shift__copy { min-width: 0; overflow-wrap: anywhere; }
+  .page-shell .profile-hero__copy text { overflow-wrap: anywhere; }
+  .page-shell .shift { min-width: 0; }
+  .page-shell .shift__type { flex: none; }
+
+  /* #ifdef H5 */
+  uni-button { font-family: inherit; line-height: 1.2; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+  .page uni-button::after, .page-shell uni-button::after { border: 0; }
+  uni-button:focus-visible { outline: 2px solid var(--smis-primary); outline-offset: 2px; }
+  /* #endif */
+
+  @media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
+    .bottom-nav, .action-bar, .report-action-dock { background: #fff !important; backdrop-filter: none !important; }
   }
 }

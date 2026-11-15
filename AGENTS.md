@@ -1,5 +1,6 @@
 # Project Instructions
 
+- Make shared theme, font, button, and form style changes in the main repository under `supabase-mobile-pro/packages/mobile-core/src`. Use this app’s existing stylesheet and component directories for business-specific styles.
 - This application follows the shared architecture of `supabase-mobile-tms-driver`, while retaining SMIS business routes, RPCs, authentication providers, and models.
 - Use Wot UI v2 (`@wot-ui/ui`), shared components under `src/components/business`, and `usePageTheme` with a page-level ConfigProvider. Keep SMIS storage keys isolated from the driver application.
 - Before changing Wot components, consult the local `wot-ui-v2` skill. Preserve the v2 form schema and FormItem/picker separation.

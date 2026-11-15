@@ -1,4 +1,6 @@
 <div align="center">
+
+The app uses the shared design system in supabase-mobile-pro. Build it from the main repository’s modules directory, or use MOBILE_PRO_ROOT to locate the matching main repository checkout.
   <h1>Art Supabase SMIS Mobile</h1>
   <p><strong>An H5 and WeChat Mini Program for frontline safety work, connected to Art Supabase Pro</strong></p>
   <p>Risk inspections, hazard reporting, rectification and acceptance, equipment records, and personal shifts in one mobile workspace.</p>
