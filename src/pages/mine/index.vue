@@ -1,19 +1,37 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
+import MobileAccountIdentity from '@mobile-core/components/MobileAccountIdentity.vue'
+import MobileAction from '@mobile-core/components/MobileAction.vue'
+import MobileSignOutDialog from '@mobile-core/components/MobileSignOutDialog.vue'
 import { usePageTheme } from '@/composables/usePageTheme'
 import SmisBottomNav from '@/components/business/SmisBottomNav.vue'
-import SmisIcon from '@/components/business/SmisIcon.vue'
-import SmisLoadError from '@/components/business/SmisLoadError.vue'
+import MobileIcon from '@mobile-core/components/MobileIcon.vue'
+import MobileLoadError from '@mobile-core/components/MobileLoadError.vue'
+import MobileLoadingStatus from '@mobile-core/components/MobileLoadingStatus.vue'
+import MobileSectionHeading from '@mobile-core/components/MobileSectionHeading.vue'
+import MobileTopBar from '@mobile-core/components/MobileTopBar.vue'
+import MobileWorkspace from '@mobile-core/components/MobileWorkspace.vue'
+// #ifdef MP-WEIXIN
+import MobileWechatPhoneBinding from '@mobile-core/components/MobileWechatPhoneBinding.vue'
+import { isWechatPhoneLoginEnabled } from '@mobile-core/wechat-phone-login'
+// #endif
 import { useAuthStore } from '@/stores/auth'
 import { useProfileStore } from '@/stores/profile'
-import { getErrorMessage } from '@/api/supabase'
+import { bindWechatPhoneNumber, getErrorMessage } from '@/api/supabase'
 
 const { themeName } = usePageTheme()
 const auth = useAuthStore()
 const profile = useProfileStore()
 const loading = ref(false)
 const loadError = ref('')
+const logoutVisible = ref(false)
+
+const links = [
+  { name: '我的排班', icon: 'schedule', url: '/pages/schedule/index' },
+  { name: '安全消息', icon: 'message', url: '/pages/messages/index' }
+] as const
+
 async function load() {
   if (loading.value || !(await auth.ensureValidSession())) return
   loading.value = true
@@ -22,37 +40,93 @@ async function load() {
   catch (error) { loadError.value = getErrorMessage(error) }
   finally { loading.value = false }
 }
-function logout() {
-  uni.showModal({ title: '退出登录', content: '退出后需要重新验证账号，是否继续？', confirmText: '退出', success: result => { if (result.confirm) void auth.logout() } })
+// #ifdef MP-WEIXIN
+async function bindWechatPhone(phoneCode: string) {
+  if (!(await auth.ensureValidSession())) throw new Error('登录已过期，请重新登录')
+  await bindWechatPhoneNumber(phoneCode, auth.token)
 }
+// #endif
 function open(url: string) { uni.navigateTo({ url }) }
-function showPermission() { uni.showToast({ title: '数据与 Web 端权限同步', icon: 'none' }) }
 onShow(load)
 </script>
 <template>
-<wd-config-provider :theme="themeName"><view class="page-shell"><view class="profile-hero"><view class="profile-hero__avatar">{{(profile.profile?.employeeName||'安').slice(-1)}}</view><view class="profile-hero__copy"><text>{{profile.profile?.employeeName||'安全生产用户'}}</text><text class="small">{{profile.profile?.employeeNo||auth.user?.email||auth.user?.phone||'账号已登录'}}</text></view><view class="profile-hero__status"><view class="i"/>已登录</view></view><view class="page-body mine-body"><SmisLoadError v-if="loadError" :message="loadError" @retry="load"/><view v-if="loading" class="profile-loading" aria-live="polite"><wd-loading color="var(--smis-primary)"/><text>正在读取员工信息…</text></view><view class="identity surface-card"><view><text>所属组织</text><text class="strong">{{profile.profile?.organizationName||'未绑定组织'}}</text></view><view><text>联系电话</text><text class="strong">{{profile.profile?.phone||'--'}}</text></view></view><view class="menu surface-card"><button @tap="open('/pages/schedule/index')"><view><SmisIcon name="schedule" size="38rpx"/></view><text>我的排班</text><SmisIcon name="chevron" size="28rpx"/></button><button @tap="open('/pages/messages/index')"><view><SmisIcon name="message" size="38rpx"/></view><text>安全消息</text><SmisIcon name="chevron" size="28rpx"/></button><button @tap="open('/pages/settings/index')"><view><SmisIcon name="settings" size="38rpx"/></view><text>外观设置</text><SmisIcon name="chevron" size="28rpx"/></button><button @tap="showPermission"><view><SmisIcon name="shield" size="38rpx"/></view><text>账号与权限</text><SmisIcon name="chevron" size="28rpx"/></button></view><view v-if="profile.profile && !profile.profile.isEmployeeLinked" class="link-warning"><SmisIcon name="notice" size="34rpx"/><text>当前账号未关联员工档案，排班与现场任务可能不可用，请联系管理员在 Web 端绑定。</text></view><button class="logout" @tap="logout">退出登录</button><text class="version">SMIS Mobile · v0.1.0</text></view><SmisBottomNav active="mine"/></view></wd-config-provider>
+  <wd-config-provider :theme="themeName">
+    <MobileWorkspace container-class="page-shell page-shell--tabbed">
+      <MobileTopBar capsule="always" title="我的" />
+      <view class="page-body mine-body" role="main">
+        <MobileAccountIdentity
+          :name="profile.profile?.employeeName || '安全生产用户'"
+          :detail="profile.profile?.employeeNo || auth.user?.email || auth.user?.phone || '账号已登录'"
+          :initials="Boolean(profile.profile?.employeeName)"
+        >
+          <template #details>
+            <template v-if="profile.profile">
+              <view class="mobile-row mobile-row--static">
+                <view class="mobile-row__body">
+                  <text class="mobile-row__label">所属组织</text>
+                  <text class="mobile-row__detail">{{ profile.profile.organizationName || '未绑定组织' }}</text>
+                </view>
+              </view>
+              <view class="mobile-row mobile-row--static">
+                <view class="mobile-row__body">
+                  <text class="mobile-row__label">联系电话</text>
+                  <text class="mobile-row__detail">{{ profile.profile.phone || '未登记' }}</text>
+                </view>
+              </view>
+            </template>
+          </template>
+        </MobileAccountIdentity>
+        <MobileLoadError v-if="loadError" :message="loadError" @retry="load" />
+        <MobileLoadingStatus v-if="loading" block label="正在读取员工信息…" />
+        <view v-if="profile.profile && !profile.profile.isEmployeeLinked" class="link-warning mobile-inline-pair mobile-inline-pair--start">
+          <view class="mobile-inline-pair__icon" aria-hidden="true"><MobileIcon name="notice" size="1em" /></view>
+          <text class="mobile-inline-pair__label">当前账号未关联员工档案，排班与现场任务可能不可用，请联系管理员在 Web 端绑定。</text>
+        </view>
+        <view class="mobile-group-section">
+          <MobileSectionHeading title="常用服务" />
+          <view class="mobile-group account-links">
+            <MobileAction v-for="link in links" :key="link.url" class="mobile-row" @click="open(link.url)">
+              <view class="mobile-row__icon" aria-hidden="true"><MobileIcon :name="link.icon" size="18px" /></view>
+              <text class="mobile-row__label mobile-row__body">{{ link.name }}</text>
+              <MobileIcon class="mobile-row__chevron" name="chevron" size="14px" aria-hidden="true" />
+            </MobileAction>
+          </view>
+        </view>
+        <view class="mobile-group-section">
+          <MobileSectionHeading title="设置与账号" />
+          <view class="mobile-group account-links">
+            <MobileAction class="mobile-row" @click="open('/pages/settings/index')">
+              <view class="mobile-row__icon" aria-hidden="true"><MobileIcon name="settings" size="18px" /></view>
+              <text class="mobile-row__label mobile-row__body">外观设置</text>
+              <MobileIcon class="mobile-row__chevron" name="chevron" size="14px" aria-hidden="true" />
+            </MobileAction>
+            <view class="mobile-row mobile-row--static">
+              <view class="mobile-row__icon" aria-hidden="true"><MobileIcon name="shield" size="18px" /></view>
+              <view class="mobile-row__body">
+                <text class="mobile-row__label">账号与权限</text>
+                <text class="mobile-row__detail">与 Web 端同步</text>
+              </view>
+            </view>
+            <!-- #ifdef MP-WEIXIN -->
+            <MobileWechatPhoneBinding v-if="isWechatPhoneLoginEnabled && auth.isLoggedIn" :bind-phone="bindWechatPhone" />
+            <!-- #endif -->
+          </view>
+        </view>
+        <view class="mobile-group">
+          <MobileAction class="mobile-row mobile-row--danger" @click="logoutVisible = true">
+            <text class="mobile-row__label">退出登录</text>
+          </MobileAction>
+        </view>
+        <text class="version">SMIS Mobile · v0.1.0</text>
+      </view>
+      <SmisBottomNav active="mine" />
+      <MobileSignOutDialog v-model="logoutVisible" :sign-out="auth.logout" />
+    </MobileWorkspace>
+  </wd-config-provider>
 </template>
 <style scoped lang="scss">
-.profile-hero { padding: calc(36rpx + env(safe-area-inset-top)) 28rpx 40rpx; background: var(--smis-hero-gradient); color: #fff; display: grid; grid-template-columns: 88rpx minmax(0, 1fr); gap: 20rpx; align-items: center; }
-.profile-hero__avatar { width: 88rpx; height: 88rpx; border: 3rpx solid rgba(255,255,255,.2); border-radius: 28rpx; background: #f5b942; color: #493200; font-size: 24px; font-weight: 700; display: flex; align-items: center; justify-content: center; grid-row: 1 / 3; }
-.profile-hero__copy { min-width: 0; display: flex; flex-direction: column; gap: 8rpx; }
-.profile-hero__copy text { font-size: clamp(20px, 36rpx, 22px); font-weight: 700; line-height: 1.4; overflow-wrap: anywhere; }
-.profile-hero__copy .small { font-size: 13px; color: rgba(255,255,255,.88); font-weight: 400; }
-.profile-hero__status { justify-self: start; display: flex; align-items: center; gap: 8rpx; font-size: 12px; color: rgba(255,255,255,.9); }
-.profile-hero__status .i { width: 10rpx; height: 10rpx; border-radius: 50%; background: #60d09b; }
-.mine-body { padding-top: 24rpx; }
-.identity { padding: 26rpx; }
-.identity > view { display: flex; flex-direction: column; gap: 12rpx; padding: 8rpx 0; }
-.identity > view + view { margin-top: 20rpx; padding-top: 22rpx; border-top: 1rpx solid var(--smis-line); }
-.identity text { font-size: 13px; color: var(--smis-text-secondary); }
-.identity .strong { font-size: 15px; color: var(--smis-text); line-height: 1.6; }
-.menu { margin-top: 24rpx; }
-.menu button { width: 100%; min-height: max(112rpx, 60px); margin: 0; padding: 16rpx 24rpx; border: 0; border-radius: 0; background: #fff; text-align: left; display: flex; align-items: center; gap: 20rpx; }
-.menu button + button { border-top: 1rpx solid var(--smis-line); }
-.menu button > view { width: 64rpx; height: 64rpx; flex: none; border-radius: 18rpx; background: var(--smis-primary-soft); color: var(--smis-primary); display: flex; align-items: center; justify-content: center; }
-.menu button > text { flex: 1; font-size: 15px; font-weight: 600; }
-.link-warning { margin-top: 24rpx; padding: 24rpx; border-radius: 20rpx; background: #fff1df; color: #91551e; display: flex; align-items: flex-start; gap: 14rpx; font-size: 13px; line-height: 1.7; }
-.logout { width: 100%; min-height: 48px; margin-top: 28rpx; border: 1rpx solid var(--smis-line); border-radius: 20rpx; background: #fff; color: var(--smis-danger); font-size: 15px; font-weight: 600; display: flex; align-items: center; justify-content: center; }
-.version { display: block; margin-top: 24rpx; text-align: center; color: var(--smis-text-secondary); font-size: 12px; }
-.profile-loading { padding: 24rpx; display: flex; align-items: center; justify-content: center; gap: 16rpx; color: var(--smis-text-secondary); font-size: 14px; }
+.mine-body { display: grid; gap: 16px; min-width: 0; }
+.link-warning { --mobile-inline-pair-gap: 8px; --mobile-inline-pair-leading: 1.6; padding: 12px; border-radius: 12px; background: var(--smis-orange-soft); color: var(--mobile-workspace-ink, var(--smis-text-strong)); font-size: max(13px, .8125rem); }
+.link-warning .mobile-inline-pair__icon { color: var(--smis-orange-strong); }
+.version { text-align: center; color: var(--smis-text-secondary); font-size: max(12px, .75rem); }
 </style>

@@ -1,12 +1,11 @@
 import { defineStore } from 'pinia'
-import { passwordLogin, refreshToken, signOut } from '@/api/supabase'
+import { redirectToLogin } from '@mobile-core/login-navigation'
+import { passwordLogin, refreshToken, signOut, wechatPhoneLogin } from '@/api/supabase'
 import type { Session } from '@/api/types'
 import { useDictionaryStore } from './dictionary'
 import { useProfileStore } from './profile'
 
 const STORAGE_KEY = 'smis-mobile-session'
-const LOGIN_URL = '/pages/login/index'
-const LOGIN_ROUTE = 'pages/login/index'
 
 let refreshSessionPromise: Promise<void> | null = null
 
@@ -21,16 +20,6 @@ function normalizeSession(session: Session | null) {
     session.expires_at = Math.floor(Date.now() / 1000) + session.expires_in
   }
   return session
-}
-
-function isLoginPage() {
-  const pages = getCurrentPages()
-  return pages[pages.length - 1]?.route === LOGIN_ROUTE
-}
-
-function redirectToLogin() {
-  if (isLoginPage()) return
-  uni.reLaunch({ url: LOGIN_URL })
 }
 
 export const useAuthStore = defineStore('auth', {
@@ -96,6 +85,18 @@ export const useAuthStore = defineStore('auth', {
       this.persist()
       await useDictionaryStore().load(this.token, true)
       return this.session
+    },
+    async loginWithWechatPhone(phoneCode: string) {
+      const session = await wechatPhoneLogin(phoneCode)
+      try {
+        await useProfileStore().load(session.access_token, true)
+        await useDictionaryStore().load(session.access_token, true)
+      } catch (error) {
+        this.clearSession()
+        throw error
+      }
+      this.session = normalizeSession(session)
+      this.persist()
     },
     async refreshSession(redirect = true) {
       if (refreshSessionPromise) return refreshSessionPromise

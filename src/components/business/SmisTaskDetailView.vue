@@ -1,13 +1,18 @@
 <script setup lang="ts">
-import SmisLoadError from '@/components/business/SmisLoadError.vue'
+import MobileLoadError from '@mobile-core/components/MobileLoadError.vue'
 
 import { usePageTheme } from '@/composables/usePageTheme'
-import { computed, ref } from 'vue'
+import { computed, getCurrentInstance, ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
+import { activateActionKey, preventActionKey } from '@mobile-core/action-keyboard'
+import MobileAction from '@mobile-core/components/MobileAction.vue'
 import MobileTopBar from '@mobile-core/components/MobileTopBar.vue'
+import MobileWorkspace from '@mobile-core/components/MobileWorkspace.vue'
+import { revealControl } from '@mobile-core/form-focus'
 import SmisStatusTag from './SmisStatusTag.vue'
-import SmisIcon from './SmisIcon.vue'
-import SmisTextareaField from './SmisTextareaField.vue'
+import MobileIcon from '@mobile-core/components/MobileIcon.vue'
+import MobileInlineLabel from '@mobile-core/components/MobileInlineLabel.vue'
+import MobileField from '@mobile-core/components/MobileField.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useProfileStore } from '@/stores/profile'
 import { getHazardInspectionTask, getRiskTask, saveHazardInspectionExecution, saveRiskExecution } from '@/api/smis'
@@ -15,25 +20,32 @@ import type { HazardInspectionTaskDetail, InspectionTaskItem, RiskTaskDetail } f
 import { formatDate } from '@/utils/format'
 import { getErrorMessage } from '@/api/supabase'
 
+defineOptions({ options: { styleIsolation: 'apply-shared' } })
+
 const { themeName } = usePageTheme()
 
 const props = defineProps<{ kind: 'risk' | 'inspection' }>()
+const nativeScope = getCurrentInstance()?.proxy
 const auth = useAuthStore()
 const profile = useProfileStore()
 const currentId = ref('')
 const loadError = ref('')
 const loading = ref(true)
-const saving = ref(false)
+const pendingAction = ref<'save' | 'complete' | null>(null)
+const submitError = ref('')
+const submitted = ref(false)
+const savedNotice = ref('')
 const detail = ref<RiskTaskDetail | HazardInspectionTaskDetail | null>(null)
 const summary = ref('')
 const canEdit = computed(() => detail.value && !['completed', 'cancelled'].includes(detail.value.status))
+const editDisabled = computed(() => !canEdit.value || pendingAction.value !== null)
 const checked = computed(() => detail.value?.items.filter((item) => item.result !== 'pending').length || 0)
 const abnormal = computed(() => detail.value?.items.filter((item) => item.result === 'abnormal').length || 0)
 
-async function load(id: string) {
+async function load(id: string, refresh = false) {
   currentId.value = id
   if (!(await auth.ensureValidSession())) return
-  loading.value = true
+  loading.value = !refresh
   loadError.value = ''
   try {
     await profile.load(auth.token)
@@ -49,24 +61,28 @@ async function load(id: string) {
 }
 
 function setResult(item: InspectionTaskItem, result: 'normal' | 'abnormal') {
-  if (canEdit.value) item.result = result
+  if (!editDisabled.value) item.result = result
 }
 
 async function save(complete: boolean) {
-  if (!detail.value || saving.value) return
-  if (complete && checked.value < detail.value.items.length) {
-    uni.showToast({ title: '请完成全部检查项后再提交', icon: 'none' })
-    return
-  }
-  if (complete && abnormal.value && !detail.value.items.filter((item) => item.result === 'abnormal').every((item) => item.remark?.trim())) {
-    uni.showToast({ title: '请填写异常项说明', icon: 'none' })
-    return
+  const task = detail.value
+  if (!task || editDisabled.value) return
+  submitError.value = ''
+  savedNotice.value = ''
+  if (complete) {
+    submitted.value = true
+    const incomplete = task.items.findIndex((item) => item.result === 'pending' || (item.result === 'abnormal' && !item.remark?.trim()))
+    const item = task.items[incomplete]
+    if (item) {
+      void revealControl(`check-${item.result === 'pending' ? '' : 'remark-region-'}${incomplete}`, { nativeScope })
+      return
+    }
   }
 
-  saving.value = true
+  pendingAction.value = complete ? 'complete' : 'save'
   try {
     if (props.kind === 'risk') {
-      const risk = detail.value as RiskTaskDetail
+      const risk = task as RiskTaskDetail
       const employeeId = profile.profile?.employeeId || risk.actualExecutorEmployeeId || risk.assigneeEmployeeId
       if (!employeeId) throw new Error('当前账号未关联员工档案')
       await saveRiskExecution(auth.token, {
@@ -78,7 +94,7 @@ async function save(complete: boolean) {
         complete
       })
     } else {
-      const hazard = detail.value as HazardInspectionTaskDetail
+      const hazard = task as HazardInspectionTaskDetail
       await saveHazardInspectionExecution(auth.token, {
         id: hazard.id,
         executionSummary: summary.value,
@@ -87,12 +103,14 @@ async function save(complete: boolean) {
         complete
       })
     }
-    uni.showToast({ title: complete ? '任务已完成' : '进度已保存', icon: 'success' })
-    await load(detail.value.id)
+    if (complete) task.status = 'completed'
+    else savedNotice.value = '进度已保存'
+    submitted.value = false
+    await load(task.id, true)
   } catch (error) {
-    uni.showToast({ title: getErrorMessage(error, '保存失败'), icon: 'none' })
+    submitError.value = getErrorMessage(error, '保存失败，已保留本次检查结果，请重试')
   } finally {
-    saving.value = false
+    pendingAction.value = null
   }
 }
 
@@ -101,135 +119,152 @@ onLoad((query) => load(String(query?.id || '')))
 
 <template>
 <wd-config-provider :theme="themeName">
-  <view class="page-shell">
-    <MobileTopBar capsule="none" :title="kind === 'risk' ? '风险巡查执行' : '隐患排查执行'" :subtitle="detail?.taskNo" show-back />
-    <view class="page-body detail-body">
-      <SmisLoadError v-if="loadError" :message="loadError" @retry="load(currentId)" />
+  <MobileWorkspace container-class="page-shell mobile-workspace--sticky-dock">
+    <MobileTopBar capsule="always" :title="kind === 'risk' ? '风险巡查执行' : '隐患排查执行'" :subtitle="detail?.taskNo" show-back />
+    <view class="page-body" :class="{ 'task-edit-content': canEdit }" role="main">
+      <MobileLoadError v-if="loadError" :message="loadError" @retry="load(currentId)" />
       <view v-if="loading" class="loading"><wd-loading color="var(--smis-primary)" /></view>
 
       <template v-else-if="detail">
         <view class="task-head surface-card">
-          <view><SmisStatusTag :status="detail.status" /><text class="task-head__type">{{ kind === 'risk' ? '风险巡查' : '隐患排查' }}</text></view>
+          <view class="task-head__meta"><SmisStatusTag :status="detail.status" /><text class="task-head__type">{{ kind === 'risk' ? '风险巡查' : '隐患排查' }}</text></view>
           <text class="task-head__title">{{ kind === 'risk' ? (detail as RiskTaskDetail).riskPointName : (detail as HazardInspectionTaskDetail).inspectionObject }}</text>
           <view class="task-head__dates">
-            <view><text>计划开始</text><text class="strong">{{ formatDate(detail.plannedStartAt, true) }}</text></view>
+            <view class="task-head__date"><text class="task-head__date-label">计划开始</text><text class="task-head__date-value">{{ formatDate(detail.plannedStartAt, true) }}</text></view>
             <view class="i" />
-            <view><text>计划完成</text><text class="strong">{{ formatDate(detail.plannedEndAt, true) }}</text></view>
+            <view class="task-head__date"><text class="task-head__date-label">计划完成</text><text class="task-head__date-value">{{ formatDate(detail.plannedEndAt, true) }}</text></view>
           </view>
         </view>
 
         <view class="progress surface-card">
-          <view><text>检查进度</text><text class="strong">{{ checked }} / {{ detail.items.length }}</text></view>
-          <view class="progress__bar"><view class="i" :style="{ width: `${detail.items.length ? checked / detail.items.length * 100 : 0}%` }" /></view>
-          <text v-if="abnormal" class="progress__danger">已发现 {{ abnormal }} 项异常</text>
-          <text v-else>选择结果后，请保存进度或完成提交</text>
+          <view class="progress__head"><text class="progress__label">检查进度</text><text class="progress__count">{{ checked }} / {{ detail.items.length }}</text></view>
+          <view v-if="detail.items.length" class="progress__bar" role="progressbar" aria-label="检查进度" :aria-valuenow="checked" :aria-valuemax="detail.items.length" aria-valuemin="0"><view class="i" :style="{ width: `${checked / detail.items.length * 100}%` }" /></view>
+          <text v-if="abnormal" class="progress__hint progress__danger">已发现 {{ abnormal }} 项异常</text>
+          <text v-else-if="canEdit" class="progress__hint">选择结果后，请保存进度或完成提交</text>
         </view>
 
         <view class="section-head">
-          <view><text>检查项目</text><text class="small">逐项确认，异常项需补充说明</text></view>
+          <view class="section-head__copy"><text class="section-head__title" role="heading" aria-level="2">检查项目</text><text class="section-head__description">逐项确认，异常项需补充说明</text></view>
         </view>
 
-        <view class="items">
-          <view v-for="(checkItem, index) in detail.items" :key="checkItem.id" class="check-item surface-card" :class="{ 'check-item--abnormal': checkItem.result === 'abnormal' }">
+        <view class="items" :aria-busy="pendingAction !== null">
+          <view v-for="(checkItem, index) in detail.items" :id="`check-${index}`" :key="checkItem.id" class="check-item surface-card" :class="{ 'check-item--abnormal': checkItem.result === 'abnormal' }">
             <view class="check-item__head">
-              <text>{{ String(index + 1).padStart(2, '0') }}</text>
-              <view><text class="small">{{ checkItem.standardName || checkItem.standardCode || '检查标准' }}</text><text class="strong">{{ checkItem.inspectionContent }}</text></view>
+              <text class="check-item__index">{{ String(index + 1).padStart(2, '0') }}</text>
+              <view class="check-item__copy"><text class="small">{{ checkItem.standardName || checkItem.standardCode || '检查标准' }}</text><text class="strong">{{ checkItem.inspectionContent }}</text></view>
             </view>
-            <view class="result-actions">
-              <wd-button
-                :custom-class="`result-button ${checkItem.result === 'normal' ? 'is-normal' : ''}`"
-                :round="false"
-                :disabled="!canEdit"
-                :aria-pressed="checkItem.result === 'normal'"
-                @click="setResult(checkItem, 'normal')"
-              ><SmisIcon name="check" size="27rpx" />正常</wd-button>
-              <wd-button
-                :custom-class="`result-button ${checkItem.result === 'abnormal' ? 'is-abnormal' : ''}`"
-                :round="false"
-                :disabled="!canEdit"
-                :aria-pressed="checkItem.result === 'abnormal'"
-                @click="setResult(checkItem, 'abnormal')"
-              ><SmisIcon name="notice" size="27rpx" />异常</wd-button>
+            <view class="result-actions" role="group" :aria-label="`第 ${index + 1} 项检查结果`">
+              <button class="mobile-action result-button" :class="{ 'result-button--normal': checkItem.result === 'normal' }"
+                role="button" :tabindex="editDisabled ? -1 : 0" :disabled="editDisabled"
+                :aria-disabled="editDisabled || undefined" :aria-pressed="checkItem.result === 'normal'"
+                hover-class="mobile-action--pressed" @click="setResult(checkItem, 'normal')"
+                @keydown="preventActionKey" @keyup="activateActionKey($event, () => setResult(checkItem, 'normal'))"
+              >
+                <MobileInlineLabel icon="check" label="正常" />
+              </button>
+              <button class="mobile-action result-button" :class="{ 'result-button--abnormal': checkItem.result === 'abnormal' }"
+                role="button" :tabindex="editDisabled ? -1 : 0" :disabled="editDisabled"
+                :aria-disabled="editDisabled || undefined" :aria-pressed="checkItem.result === 'abnormal'"
+                hover-class="mobile-action--pressed" @click="setResult(checkItem, 'abnormal')"
+                @keydown="preventActionKey" @keyup="activateActionKey($event, () => setResult(checkItem, 'abnormal'))"
+              >
+                <MobileInlineLabel icon="warning" label="异常" />
+              </button>
             </view>
-            <SmisTextareaField
-              v-if="checkItem.result === 'abnormal'"
-              v-model="checkItem.remark"
-              class="check-item__remark"
-              label="异常说明"
-              hint="必填"
-              compact
-              required
-              :disabled="!canEdit"
-              :maxlength="300"
-              placeholder="描述异常情况、位置与建议措施…"
-            />
+            <text v-if="submitted && checkItem.result === 'pending'" class="smis-inline-error" role="alert">请选择检查结果</text>
+            <view v-if="checkItem.result === 'abnormal'" :id="`check-remark-region-${index}`" class="check-item__remark">
+              <MobileField
+                :field="`check-remark-${index}`"
+                :model-value="checkItem.remark ?? ''"
+                label="异常说明"
+                multiline
+                show-count
+                required
+                :disabled="editDisabled"
+                :error="submitted && !checkItem.remark?.trim() ? '请补充异常情况与位置' : ''"
+                :maxlength="300"
+                placeholder="描述异常情况、位置与建议措施…"
+                @update:model-value="checkItem.remark = $event"
+              />
+            </view>
           </view>
         </view>
 
         <view class="summary-field surface-card">
-          <SmisTextareaField
+          <MobileField
             v-model="summary"
-            label="执行小结"
-            hint="选填"
+            field="execution-summary"
+            label="执行小结（选填）"
             class="summary-textarea"
-            :disabled="!canEdit"
+            multiline
+            show-count
+            :disabled="editDisabled"
             :maxlength="500"
-            placeholder="填写本次巡查的整体情况（选填）…"
+            placeholder="填写本次检查的整体情况…"
           />
         </view>
 
-        <view v-if="canEdit" class="action-bar">
-          <wd-button custom-class="smis-secondary-action save-action" :round="false" :disabled="saving" @click="save(false)">保存进度</wd-button>
-          <wd-button custom-class="smis-primary-action submit-action" type="primary" :round="false" :loading="saving" :disabled="saving" @click="save(true)">完成并提交</wd-button>
+        <view v-if="!canEdit" class="closed-note mobile-inline-pair mobile-inline-pair--start" role="status">
+          <view class="mobile-inline-pair__icon" aria-hidden="true"><MobileIcon name="check" size="1em" /></view>
+          <text class="mobile-inline-pair__label">该任务已结束，检查结果和操作记录已保留。</text>
         </view>
-        <view v-else class="closed-note"><SmisIcon name="check" size="34rpx" /><text>该任务已结束，检查结果与操作记录已固化留痕。</text></view>
       </template>
 
       <view v-else-if="!loadError" class="loading">任务不存在或无权查看</view>
     </view>
-  </view>
+    <view v-if="canEdit && !loading" class="mobile-dock mobile-dock--sticky task-dock" aria-label="检查结果操作">
+      <text v-if="submitError" class="mobile-dock__note mobile-dock__note--error" role="alert">{{ submitError }}</text>
+      <text v-else-if="savedNotice" class="mobile-dock__note" role="status">{{ savedNotice }}</text>
+      <view class="mobile-dock__actions" :aria-busy="pendingAction !== null">
+        <MobileAction class="smis-secondary-action mobile-dock__action" :disabled="editDisabled" @click="save(false)">
+          {{ pendingAction === 'save' ? '正在保存…' : '保存进度' }}
+        </MobileAction>
+        <MobileAction class="smis-primary-action mobile-dock__action" :disabled="editDisabled" @click="save(true)">
+          {{ pendingAction === 'complete' ? '正在提交…' : '完成并提交' }}
+        </MobileAction>
+      </view>
+    </view>
+  </MobileWorkspace>
 </wd-config-provider>
 </template>
 
 <style scoped lang="scss">
-.detail-body { padding-bottom: calc(220rpx + env(safe-area-inset-bottom)) !important; }
+.task-edit-content { padding-bottom: 24px; }
 .loading { min-height: 340rpx; color: var(--smis-text-muted); display: flex; align-items: center; justify-content: center; }
 .task-head { padding: 26rpx; }
-.task-head > view:first-child { display: flex; align-items: center; gap: 12rpx; }
+.task-head__meta { display: flex; align-items: center; gap: 12rpx; }
 .task-head__type { color: var(--smis-text-muted); font-size: clamp(13px, 18rpx, 14px); }
 .task-head__title { display: block; margin-top: 15rpx; font-size: clamp(15px, 28rpx, 17px); font-weight: 700; line-height: 1.45; }
 .task-head__dates { margin-top: 20rpx; padding: 18rpx; border-radius: 17rpx; background: var(--smis-control-bg); display: grid; grid-template-columns: minmax(0, 1fr) 1rpx minmax(0, 1fr); gap: 18rpx; }
-.task-head__dates > view { min-width: 0; display: flex; flex-direction: column; }
-.task-head__dates text { color: var(--smis-text-muted); font-size: clamp(13px, 18rpx, 14px); }
-.task-head__dates .strong { margin-top: 5rpx; color: var(--smis-text); font-size: clamp(13px, 20rpx, 14px); font-weight: 600; line-height: 1.35; }
+.task-head__date { min-width: 0; display: flex; flex-direction: column; }
+.task-head__date-label { color: var(--smis-text-muted); font-size: clamp(13px, 18rpx, 14px); }
+.task-head__date-value { margin-top: 5rpx; color: var(--smis-text); font-size: clamp(13px, 20rpx, 14px); font-weight: 600; line-height: 1.35; }
 .task-head__dates .i { background: var(--smis-line); }
 .progress { margin-top: 16rpx; padding: 23rpx; }
-.progress > view:first-child { display: flex; align-items: center; justify-content: space-between; }
-.progress > view text { color: var(--smis-text-secondary); font-size: clamp(13px, 20rpx, 14px); }
-.progress > view .strong { color: var(--smis-primary); font-size: clamp(14px, 24rpx, 15px); font-weight: 700; }
+.progress__head { display: flex; align-items: center; justify-content: space-between; }
+.progress__label { color: var(--smis-text-secondary); font-size: clamp(13px, 20rpx, 14px); }
+.progress__count { color: var(--smis-primary); font-size: clamp(14px, 24rpx, 15px); font-weight: 700; }
 .progress__bar { height: 12rpx; margin: 16rpx 0 10rpx; border-radius: 999rpx; background: #e8edf0; overflow: hidden; }
 .progress__bar .i { display: block; height: 100%; border-radius: 999rpx; background: var(--smis-primary-gradient); }
-.progress > text { color: var(--smis-text-muted); font-size: clamp(13px, 18rpx, 14px); }
-.progress .progress__danger { color: var(--smis-danger); }
+.progress__hint { color: var(--smis-text-muted); font-size: clamp(13px, 18rpx, 14px); }
+.progress__danger { color: var(--smis-danger); }
 .section-head { margin: 30rpx 4rpx 16rpx; }
-.section-head > view { display: flex; align-items: flex-start; flex-direction: column; gap: 8rpx; }
-.section-head text { color: var(--smis-text); font-size: clamp(15px, 28rpx, 17px); font-weight: 700; }
-.section-head .small { color: var(--smis-text-muted); font-size: clamp(13px, 18rpx, 14px); font-weight: 500; line-height: 1.4; text-align: right; }
+.section-head__copy { display: flex; align-items: flex-start; flex-direction: column; gap: 8rpx; }
+.section-head__title { color: var(--smis-text); font-size: clamp(15px, 28rpx, 17px); font-weight: 700; }
+.section-head__description { color: var(--smis-text-muted); font-size: clamp(13px, 18rpx, 14px); font-weight: 500; line-height: 1.4; text-align: right; }
 .items { display: flex; flex-direction: column; gap: 15rpx; }
 .check-item { padding: 24rpx; }
 .check-item--abnormal { border-left: 7rpx solid var(--smis-danger); }
 .check-item__head { display: flex; align-items: flex-start; gap: 16rpx; }
-.check-item__head > text { width: 46rpx; height: 46rpx; flex: 0 0 46rpx; border-radius: 14rpx; color: var(--smis-primary); background: var(--smis-primary-soft); font-size: clamp(13px, 18rpx, 14px); font-weight: 700; line-height: 1; display: flex; align-items: center; justify-content: center; }
-.check-item__head > view { min-width: 0; flex: 1; display: flex; flex-direction: column; }
+.check-item__index { width: 46rpx; height: 46rpx; flex: 0 0 46rpx; border-radius: 14rpx; color: var(--smis-primary); background: var(--smis-primary-soft); font-size: clamp(13px, 18rpx, 14px); font-weight: 700; line-height: 1; display: flex; align-items: center; justify-content: center; }
+.check-item__copy { min-width: 0; flex: 1; display: flex; flex-direction: column; }
 .check-item__head .small { color: var(--smis-text-muted); font-size: clamp(13px, 17rpx, 14px); }
 .check-item__head .strong { margin-top: 6rpx; color: var(--smis-text); font-size: clamp(15px, 28rpx, 17px); font-weight: 600; line-height: 1.65; }
 .result-actions { margin-top: 20rpx; display: grid; grid-template-columns: 1fr 1fr; gap: 12rpx; }
-.result-actions :deep(.result-button) { width: 100% !important; height: var(--smis-control-height) !important; margin: 0 !important; border: 1rpx solid var(--smis-control-border) !important; border-radius: 17rpx !important; color: var(--smis-text-secondary) !important; background: var(--smis-control-bg) !important; font-size: clamp(13px, 21rpx, 14px) !important; font-weight: 700 !important; display: flex !important; align-items: center !important; justify-content: center !important; gap: 8rpx; }
-.result-actions :deep(.result-button.is-normal) { border-color: rgba(37, 115, 84, .14) !important; color: var(--smis-success) !important; background: #e5f3ec !important; }
-.result-actions :deep(.result-button.is-abnormal) { border-color: rgba(174, 55, 53, .14) !important; color: var(--smis-danger) !important; background: #fbe9e8 !important; }
+.result-button.mobile-action { --mobile-inline-pair-leading: 1.35; width: 100%; min-height: max(44px, var(--smis-control-height)); padding: 6px; border: 1px solid var(--smis-control-border); border-radius: 17rpx; color: var(--smis-text-secondary); background: var(--smis-control-bg); font-size: clamp(13px, 21rpx, 14px); font-weight: 700; display: flex; align-items: center; justify-content: center; }
+.result-button--normal.mobile-action { border-color: var(--smis-success); color: var(--smis-success); background: #e5f3ec; }
+.result-button--abnormal.mobile-action { border-color: var(--smis-danger); color: var(--smis-danger); background: #fbe9e8; }
 .check-item__remark { margin-top: 14rpx; }
 .summary-field { margin-top: 18rpx; padding: 24rpx; }
-.action-bar { position: fixed; z-index: 20; left: 50%; right: auto; bottom: 0; width: min(100%, 520px); box-sizing: border-box; padding: 16rpx 24rpx calc(16rpx + env(safe-area-inset-bottom)); background: rgba(255,255,255,.95); border-top: 1rpx solid var(--smis-line); box-shadow: 0 -4rpx 16rpx rgba(31,59,76,.04); transform: translateX(-50%); backdrop-filter: blur(24rpx); display: grid; grid-template-columns: 1fr 1.6fr; gap: 14rpx; }
-.action-bar :deep(.wd-button) { width: 100% !important; height: var(--smis-control-height) !important; margin: 0 !important; border-radius: 18rpx !important; font-size: clamp(13px, 23rpx, 14px) !important; font-weight: 700 !important; }
-.closed-note { margin-top: 18rpx; padding: 22rpx; border-radius: 18rpx; color: var(--smis-success); background: #e5f3ec; display: flex; align-items: flex-start; gap: 13rpx; font-size: clamp(13px, 20rpx, 14px); line-height: 1.5; }
+.closed-note { margin-top: 18rpx; padding: 22rpx; border-radius: 18rpx; color: var(--smis-success); background: #e5f3ec; font-size: clamp(13px, 20rpx, 14px); }
 </style>

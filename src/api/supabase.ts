@@ -21,6 +21,7 @@ interface ApiErrorDetails {
 const TECHNICAL_ERROR_PATTERN =
   /(?:function|operator|column|relation|record|type).*?(?:does not exist|has no field)|schema cache|postgrest|pgrst\d+|sqlstate|duplicate key value|violates .* constraint|invalid input syntax|failed to run sql query|unexpected token/i
 const NETWORK_ERROR_PATTERN = /request:fail|failed to fetch|network error|network request failed/i
+const WECHAT_PHONE_AUTH_PATH = '/functions/v1/mobile-wechat-auth'
 
 export class ApiRequestError extends Error {
   readonly code?: string
@@ -174,6 +175,29 @@ export async function passwordLogin(account: string, password: string) {
   }
   const payload = await request<{ session?: Session } | Session>('/functions/v1/login-with-phone', { method: 'POST', body: { phone: identifier, password } })
   return ('session' in payload && payload.session ? payload.session : payload) as Session
+}
+
+export async function wechatPhoneLogin(phoneCode: string) {
+  const session = await request<Session>(WECHAT_PHONE_AUTH_PATH, {
+    method: 'POST',
+    body: { app: 'smis', phoneCode }
+  })
+  if (typeof session?.access_token !== 'string' || !session.access_token ||
+    typeof session.refresh_token !== 'string' || !session.refresh_token ||
+    typeof session.user?.id !== 'string' || !session.user.id) {
+    throw new ApiRequestError({ code: 'invalid_session' }, '手机一键登录未完成，请重试或使用密码登录')
+  }
+  return session
+}
+
+export async function bindWechatPhoneNumber(phoneCode: string, token: string): Promise<{ bound: true }> {
+  const response = await request<{ bound?: boolean }>(WECHAT_PHONE_AUTH_PATH, {
+    method: 'POST',
+    body: { app: 'smis', phoneCode, action: 'bind' },
+    token
+  })
+  if (response?.bound !== true) throw new ApiRequestError({ code: 'WECHAT_PHONE_UNAVAILABLE' })
+  return { bound: true }
 }
 
 export async function refreshToken(refreshToken: string) {

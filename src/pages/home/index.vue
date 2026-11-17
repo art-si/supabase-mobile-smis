@@ -1,11 +1,19 @@
 <script setup lang="ts">
+import MobileAction from '@mobile-core/components/MobileAction.vue'
 import { usePageTheme } from '@/composables/usePageTheme'
 import { computed, ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import SmisBottomNav from '@/components/business/SmisBottomNav.vue'
-import SmisIcon from '@/components/business/SmisIcon.vue'
-import SmisTaskCard from '@/components/business/SmisTaskCard.vue'
-import SmisLoadError from '@/components/business/SmisLoadError.vue'
+import MobileEmptyState from '@mobile-core/components/MobileEmptyState.vue'
+import MobileIcon from '@mobile-core/components/MobileIcon.vue'
+import MobileInlineLabel from '@mobile-core/components/MobileInlineLabel.vue'
+import MobileLoadError from '@mobile-core/components/MobileLoadError.vue'
+import MobileLoadingStatus from '@mobile-core/components/MobileLoadingStatus.vue'
+import MobileMetricGrid from '@mobile-core/components/MobileMetricGrid.vue'
+import MobileSectionHeading from '@mobile-core/components/MobileSectionHeading.vue'
+import MobileTopBar from '@mobile-core/components/MobileTopBar.vue'
+import MobileWorkspace from '@mobile-core/components/MobileWorkspace.vue'
+import SmisStatusTag from '@/components/business/SmisStatusTag.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useProfileStore } from '@/stores/profile'
 import { listEquipment, listHazardInspectionTasks, listHazards, listRiskTasks } from '@/api/smis'
@@ -17,7 +25,7 @@ const { themeName } = usePageTheme()
 const auth = useAuthStore(); const profileStore = useProfileStore()
 function nav(url:string){uni.navigateTo({url})}
 function openWorkbench(){uni.reLaunch({url:'/pages/workbench/index'})}
-const loading = ref(false); const error = ref('')
+const loading = ref(false); const loaded = ref(false); const error = ref('')
 const dashboard = ref({ risk: { total: 0, notStarted: 0, inProgress: 0, overdue: 0, completed: 0 }, inspection: { total: 0, notStarted: 0, inProgress: 0, overdue: 0, completed: 0 }, hazard: { total: 0, pendingApproval: 0, rectifying: 0, pendingAcceptance: 0, completed: 0, closed: 0 }, equipment: { total: 0, inUse: 0, boilerCount: 0, dueSoon: 0 } })
 const taskRows = ref<Array<{ id: string; type: 'risk'|'inspection'; title: string; code: string; status: string; end: string }>>([])
 const userName = computed(() => profileStore.profile?.employeeName || String(auth.user?.user_metadata?.name || auth.user?.email || '安全员'))
@@ -29,9 +37,21 @@ const greeting = computed(() => {
 })
 const pendingTotal = computed(() => dashboard.value.risk.notStarted + dashboard.value.risk.inProgress + dashboard.value.risk.overdue + dashboard.value.inspection.notStarted + dashboard.value.inspection.inProgress + dashboard.value.inspection.overdue)
 const closureRate = computed(() => dashboard.value.hazard.total ? Math.round(((dashboard.value.hazard.completed + dashboard.value.hazard.closed) / dashboard.value.hazard.total) * 100) : 0)
+const metrics = computed(() => [
+  { label: '待处理任务', value: loaded.value ? pendingTotal.value : '—' },
+  { label: '隐患闭环率', value: loaded.value ? closureRate.value : '—', unit: loaded.value ? '%' : undefined },
+  { label: '设备在用', value: loaded.value ? dashboard.value.equipment.inUse : '—' }
+])
+const modules = computed(() => [
+  { title: '风险管控', icon: 'risk', detail: loaded.value ? `${dashboard.value.risk.overdue} 项逾期` : '查看风险巡查', url: '/pages/risk/index' },
+  { title: '隐患排查', icon: 'inspection', detail: loaded.value ? `${dashboard.value.inspection.inProgress} 项执行中` : '查看排查任务', url: '/pages/inspection/index' },
+  { title: '隐患治理', icon: 'hazard', detail: loaded.value ? `${dashboard.value.hazard.rectifying} 项整改中` : '查看整改与验收', url: '/pages/hazards/index' },
+  { title: '设备台账', icon: 'equipment', detail: loaded.value ? `${dashboard.value.equipment.dueSoon} 台临近检验` : '查看设备与检验', url: '/pages/equipment/index' },
+  { title: '我的排班', icon: 'schedule', detail: '查看本月班次与跨日安排', url: '/pages/schedule/index' },
+])
 
 async function load() {
-  if (!(await auth.ensureValidSession())) return
+  if (loading.value || !(await auth.ensureValidSession())) return
   loading.value = true; error.value = ''
   try {
     await profileStore.load(auth.token)
@@ -39,6 +59,7 @@ async function load() {
       listRiskTasks(auth.token, { to: 4 }), listHazardInspectionTasks(auth.token, { to: 4 }), listHazards(auth.token, { to: 4 }), listEquipment(auth.token, { to: 0 })
     ])
     dashboard.value = { risk: risk.overview, inspection: inspection.overview, hazard: hazard.overview, equipment: equipment.overview }
+    loaded.value = true
     taskRows.value = [
       ...risk.records.map(item => ({ id: item.id, type: 'risk' as const, title: item.riskPointName, code: item.taskNo, status: item.status, end: item.plannedEndAt })),
       ...inspection.records.map(item => ({ id: item.id, type: 'inspection' as const, title: item.inspectionObject, code: item.taskNo, status: item.status, end: item.plannedEndAt }))
@@ -51,74 +72,71 @@ onShow(load)
 
 <template>
 <wd-config-provider :theme="themeName">
-  <view class="page-shell">
-    <view class="hero">
-      <view class="hero__top"><view><text class="hero__eyebrow">现场安全工作台</text><text class="hero__hello">{{ greeting }}，{{ userName }}</text><text class="hero__sub">今天也要把风险挡在作业之前</text></view><view class="hero__badge"><SmisIcon name="shield" size="42rpx" /></view></view>
-      <view class="hero__summary"><view><text>待处理任务</text><text class="strong">{{ loading ? '—' : pendingTotal }}</text></view><view class="hero__divider" /><view><text>隐患闭环率</text><text class="strong">{{ loading ? '—' : closureRate }}<text class="small">%</text></text></view><view class="hero__divider" /><view><text>设备在用</text><text class="strong">{{ loading ? '—' : dashboard.equipment.inUse }}</text></view></view>
+  <MobileWorkspace container-class="page-shell page-shell--tabbed">
+    <MobileTopBar capsule="always" title="安全工作台" :eyebrow="`${greeting}，${userName}`" subtitle="现场安全 · 巡查与隐患闭环" />
+    <view class="page-body home-body" role="main">
+      <view class="home-report mobile-group">
+        <MobileSectionHeading title="现场隐患上报" description="拍照记录现场，提交后可跟进整改。" />
+        <MobileAction class="smis-primary-action" @click="nav('/pages/quick-report/index')">
+          <MobileInlineLabel icon="camera" label="随手拍上报" icon-size="18px" />
+        </MobileAction>
+      </view>
 
-    </view>
-    <view class="page-body home-body">
-      <SmisLoadError v-if="error" :message="error" @retry="load" />
-      <button class="report-entry" @tap="nav('/pages/quick-report/index')"><view class="report-entry__icon"><SmisIcon name="camera" size="44rpx" /></view><view><text>发现隐患，立即上报</text><text class="small">记录现场 · 上传照片 · 跟进整改</text></view><SmisIcon name="chevron" size="30rpx" /></button>
-      <view class="quick-grid">
-        <button class="quick-card" @tap="nav('/pages/risk/index')"><view class="quick-card__icon quick-card__icon--blue"><SmisIcon name="risk" size="42rpx" /></view><text>风险管控</text><text class="small">{{ dashboard.risk.overdue }} 项逾期</text></button>
-        <button class="quick-card" @tap="nav('/pages/inspection/index')"><view class="quick-card__icon quick-card__icon--yellow"><SmisIcon name="inspection" size="42rpx" /></view><text>隐患排查</text><text class="small">{{ dashboard.inspection.inProgress }} 项执行中</text></button>
-        <button class="quick-card" @tap="nav('/pages/hazards/index')"><view class="quick-card__icon quick-card__icon--orange"><SmisIcon name="hazard" size="42rpx" /></view><text>隐患治理</text><text class="small">{{ dashboard.hazard.rectifying }} 项整改中</text></button>
-        <button class="quick-card" @tap="nav('/pages/equipment/index')"><view class="quick-card__icon quick-card__icon--green"><SmisIcon name="equipment" size="42rpx" /></view><text>设备台账</text><text class="small">{{ dashboard.equipment.dueSoon }} 台临检</text></button>
+      <view class="home-section home-priority" :aria-busy="loading">
+        <MobileSectionHeading title="优先处理" description="逾期任务优先，按截止时间排序" action-label="打开工作台" @action="openWorkbench" />
+        <MobileLoadError v-if="error" :message="error" @retry="load" />
+        <view v-if="taskRows.length" class="home-task-list mobile-group">
+          <MobileAction v-for="item in taskRows" :key="`${item.type}-${item.id}`" class="mobile-row home-task" @click="openTask(item)">
+            <view class="mobile-row__body">
+              <view class="home-task__meta">
+                <text class="mobile-row__detail home-task__reference" translate="no">{{ item.code }}</text>
+                <SmisStatusTag :status="item.status" />
+              </view>
+              <text class="mobile-row__label">{{ item.title }}</text>
+              <text class="mobile-row__detail home-task__time">{{ item.type === 'risk' ? '风险巡查' : '隐患排查' }}{{ item.end ? ` · 截止 ${formatDate(item.end, true)}` : '' }}</text>
+            </view>
+            <MobileIcon class="mobile-row__chevron" name="chevron" size="14px" aria-hidden="true" />
+          </MobileAction>
+        </view>
+        <view v-else-if="!error" class="mobile-group">
+          <MobileEmptyState v-if="loaded && !loading" icon="check" title="当前没有待处理任务" description="保持巡检节奏，发现异常可随手拍上报。" />
+          <MobileLoadingStatus v-else class="home-loading" label="正在同步安全任务…" />
+        </view>
       </view>
-      <view class="section-head"><view><text class="section-title">优先处理</text><text class="section-subtitle">按逾期与截止时间排序</text></view><button @tap="openWorkbench">查看全部</button></view>
-      <view v-if="loading" class="loading-card surface-card"><wd-loading color="var(--smis-primary)" /> <text>正在同步安全任务…</text></view>
-      <view v-else-if="taskRows.length" class="task-list">
-        <SmisTaskCard v-for="item in taskRows" :key="`${item.type}-${item.id}`" :title="item.title" :code="`${item.type === 'risk' ? '风险巡查' : '隐患排查'} · ${item.code}`" :status="item.status" :end="formatDate(item.end, true)" @tap="openTask(item)" />
+
+      <view class="home-section">
+        <MobileSectionHeading title="安全概览" />
+        <MobileMetricGrid :items="metrics" />
       </view>
-      <view v-else-if="!error" class="safe-state surface-card"><view><SmisIcon name="check" size="48rpx" /></view><text>当前没有待处理任务</text><text class="small">保持巡检节奏，异常及时随手拍</text></view>
-      <button class="schedule-card" @tap="nav('/pages/schedule/index')"><view><text>我的排班</text><text class="small">查看本月班次与跨日安排</text></view><SmisIcon name="schedule" size="44rpx"/><SmisIcon name="chevron" size="30rpx"/></button>
+      <view class="home-section">
+        <MobileSectionHeading title="常用入口" />
+        <view class="home-module-list mobile-group">
+          <MobileAction v-for="item in modules" :key="item.url" class="mobile-row" @click="nav(item.url)">
+            <view class="mobile-row__icon" aria-hidden="true"><MobileIcon :name="item.icon" size="18px" /></view>
+            <view class="mobile-row__body">
+              <text class="mobile-row__label">{{ item.title }}</text>
+              <text class="mobile-row__detail">{{ item.detail }}</text>
+            </view>
+            <MobileIcon class="mobile-row__chevron" name="chevron" size="14px" aria-hidden="true" />
+          </MobileAction>
+        </view>
+      </view>
     </view>
     <SmisBottomNav active="home" />
-  </view>
+  </MobileWorkspace>
 </wd-config-provider>
 </template>
 
 <style scoped lang="scss">
-.hero { padding: calc(32rpx + env(safe-area-inset-top)) 28rpx 30rpx; color: #fff; background: var(--smis-hero-gradient); }
-.hero__top { display: flex; align-items: center; gap: 20rpx; }
-.hero__top > view:first-child { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 10rpx; }
-.hero__eyebrow { font-size: 13px; color: rgba(255,255,255,.82); }
-.hero__hello { font-size: clamp(21px, 38rpx, 23px); font-weight: 700; line-height: 1.4; overflow-wrap: anywhere; }
-.hero__sub { font-size: 13px; color: rgba(255,255,255,.85); }
-.hero__badge { width: 76rpx; height: 76rpx; flex: none; border: 1rpx solid rgba(255,255,255,.2); border-radius: 24rpx; display: flex; align-items: center; justify-content: center; color: #fcd34d; }
-.hero__summary { margin-top: 24rpx; padding-top: 20rpx; border-top: 1rpx solid rgba(255,255,255,.18); display: grid; grid-template-columns: 1fr 1rpx 1fr 1rpx 1fr; gap: 12rpx; }
-.hero__summary > view:not(.hero__divider) { display: flex; flex-direction: column; gap: 12rpx; }
-.hero__summary text { font-size: 13px; color: rgba(255,255,255,.85); }
-.hero__summary .strong { color: #fff; font-size: clamp(24px, 40rpx, 26px); font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; }
-.hero__summary .small { margin-left: 4rpx; font-size: 13px; }
-.hero__divider { background: rgba(255,255,255,.18); }
-.home-body { padding-top: 24rpx; }
-.report-entry { width: 100%; margin: 0 0 24rpx; padding: 24rpx; display: flex; align-items: center; gap: 18rpx; text-align: left; border-radius: 24rpx; background: var(--smis-primary-soft); color: var(--smis-primary); border: 1rpx solid rgba(var(--smis-primary-rgb),.15); }
-.report-entry__icon { width: 72rpx; height: 72rpx; flex: none; border-radius: 20rpx; background: #fff; display: flex; align-items: center; justify-content: center; }
-.report-entry > view:nth-child(2) { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 8rpx; }
-.report-entry text { font-size: clamp(15px, 28rpx, 17px); font-weight: 700; }
-.report-entry .small { font-size: 13px; line-height: 1.5; font-weight: 400; color: var(--smis-text-secondary); }
-.quick-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 18rpx; }
-.quick-card { min-width: 0; margin: 0; padding: 22rpx; border: 1rpx solid var(--smis-line); border-radius: 24rpx; background: #fff; text-align: left; display: grid; grid-template-columns: 56rpx minmax(0, 1fr); align-items: center; gap: 16rpx 12rpx; }
-.quick-card__icon { width: 56rpx; height: 56rpx; margin-bottom: 0; border-radius: 18rpx; display: flex; align-items: center; justify-content: center; }
-.quick-card__icon--blue { background: var(--smis-primary-soft); color: var(--smis-primary); }
-.quick-card__icon--yellow { background: #fff4d8; color: #9a6712; }
-.quick-card__icon--orange { background: #fcece0; color: var(--smis-warning); }
-.quick-card__icon--green { background: #e4f3ec; color: var(--smis-success); }
-.quick-card > text { font-size: clamp(15px, 28rpx, 17px); font-weight: 700; color: var(--smis-text); }
-.quick-card > .small { grid-column: 1 / -1; margin-top: 0; color: var(--smis-text-secondary); font-size: 13px; font-weight: 400; }
-.section-head { margin: 28rpx 0 16rpx; display: flex; align-items: center; justify-content: space-between; gap: 12rpx; }
-.section-head > view { min-width: 0; display: flex; flex-direction: column; }
-.section-head button { flex: none; min-height: 44px; margin: 0; padding: 0 8rpx; border: 0; background: transparent; color: var(--smis-primary); font-size: 13px; }
-.task-list { display: flex; flex-direction: column; gap: 18rpx; }
-.loading-card { padding: 50rpx 20rpx; display: flex; align-items: center; justify-content: center; gap: 16rpx; color: var(--smis-text-secondary); font-size: 14px; }
-.safe-state { padding: 40rpx 20rpx; display: flex; flex-direction: column; align-items: center; gap: 14rpx; text-align: center; }
-.safe-state > view { color: var(--smis-success); }
-.safe-state > text { font-size: 15px; font-weight: 600; }
-.safe-state .small { font-size: 13px; color: var(--smis-text-secondary); font-weight: 400; }
-.schedule-card { width: 100%; margin: 24rpx 0 0; padding: 26rpx; border: 1rpx solid var(--smis-line); border-radius: 24rpx; background: #fff; color: var(--smis-primary); text-align: left; display: flex; align-items: center; gap: 20rpx; }
-.schedule-card > view:first-child { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 8rpx; }
-.schedule-card text { font-size: clamp(15px, 28rpx, 17px); font-weight: 700; color: var(--smis-text); }
-.schedule-card .small { font-size: 13px; font-weight: 400; color: var(--smis-text-secondary); }
+.home-body { display: grid; align-content: start; gap: 20px; }
+.home-section { display: grid; min-width: 0; gap: 8px; }
+.home-report { display: grid; gap: 12px; padding: var(--mobile-workspace-card-padding); }
+.home-report .smis-primary-action { width: 100%; margin: 0; }
+.home-task__meta { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 8px; }
+.home-task__reference { flex: 1 1 100px; min-width: 0; }
+.home-task .mobile-row__label { text-wrap: pretty; }
+.home-task__reference,
+.home-task__time { font-variant-numeric: tabular-nums; }
+.home-module-list .mobile-row__icon { color: var(--smis-text-secondary); background: var(--smis-panel); }
+.home-loading { padding: 24px var(--mobile-workspace-card-padding); justify-content: center; }
 </style>

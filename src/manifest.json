@@ -18,6 +18,7 @@
   },
   "mp-weixin": {
     "appid": "",
+    "mergeVirtualHostAttributes": true,
     "permission": {
       "scope.userLocation": {
         "desc": "用于记录现场隐患的具体位置"

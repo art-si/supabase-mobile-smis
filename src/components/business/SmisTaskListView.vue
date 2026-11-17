@@ -1,16 +1,19 @@
 <script setup lang="ts">
 import MobileMetricGrid from '@mobile-core/components/MobileMetricGrid.vue'
-import SmisLoadError from '@/components/business/SmisLoadError.vue'
+import MobileLoadError from '@mobile-core/components/MobileLoadError.vue'
+import MobileLoadingStatus from '@mobile-core/components/MobileLoadingStatus.vue'
 
 import { usePageTheme } from '@/composables/usePageTheme'
-import { computed, ref } from 'vue'
+import { computed, onBeforeUnmount, ref } from 'vue'
 import { onPullDownRefresh, onReachBottom, onShow } from '@dcloudio/uni-app'
 import MobileTopBar from '@mobile-core/components/MobileTopBar.vue'
 import SmisTaskCard from './SmisTaskCard.vue'
-import SmisEmpty from './SmisEmpty.vue'
-import SmisSearchBar from './SmisSearchBar.vue'
-import SmisStatusTabs from './SmisStatusTabs.vue'
-import SmisListFooter from './SmisListFooter.vue'
+import MobileEmptyState from '@mobile-core/components/MobileEmptyState.vue'
+import MobileSearch from '@mobile-core/components/MobileSearch.vue'
+import MobileSegmented from '@mobile-core/components/MobileSegmented.vue'
+import MobileListFooter from '@mobile-core/components/MobileListFooter.vue'
+import { createLatestRequest } from '@mobile-core/latest-request'
+import { mergePageRows } from '@mobile-core/list-rows'
 import { useAuthStore } from '@/stores/auth'
 import { listHazardInspectionTasks, listRiskTasks } from '@/api/smis'
 import type { HazardInspectionTask, RiskTask, TaskOverview, TaskStatus } from '@/api/types'
@@ -23,11 +26,14 @@ const PAGE_SIZE = 15
 const props = defineProps<{ kind: 'risk' | 'inspection' }>()
 const auth = useAuthStore()
 const loadError = ref('')
+const failedMore = ref(false)
 const loading = ref(false)
 const loadingMore = ref(false)
 const keyword = ref('')
+const searchTerm = ref('')
 const status = ref<TaskStatus | ''>('')
 const rows = ref<Array<RiskTask | HazardInspectionTask>>([])
+const offset = ref(0)
 const total = ref(0)
 const overview = ref<TaskOverview>({ total: 0, notStarted: 0, inProgress: 0, overdue: 0, completed: 0, cancelled: 0 })
 const tabs: Array<{ value: TaskStatus | ''; label: string }> = [
@@ -37,32 +43,49 @@ const tabs: Array<{ value: TaskStatus | ''; label: string }> = [
   { value: 'overdue', label: '已逾期' },
   { value: 'completed', label: '已完成' }
 ]
-const finished = computed(() => rows.value.length >= total.value)
+const finished = computed(() => offset.value >= total.value)
+const requests = createLatestRequest()
 
 async function load(reset = true) {
-  if (loading.value || loadingMore.value || !(await auth.ensureValidSession())) return
-  reset ? (loading.value = true) : (loadingMore.value = true)
-  const from = reset ? 0 : rows.value.length
+  if (!reset && (loading.value || loadingMore.value || finished.value)) return
+  const isCurrent = reset ? requests.start() : requests.snapshot()
+  loading.value = reset
+  loadingMore.value = !reset
+  const from = reset ? 0 : offset.value
+  const params = { keyword: searchTerm.value, status: status.value || undefined, from, to: from + PAGE_SIZE - 1 }
   loadError.value = ''
+  failedMore.value = false
   try {
-    const params = { keyword: keyword.value, status: status.value || undefined, from, to: from + PAGE_SIZE - 1 }
+    if (!(await auth.ensureValidSession()) || !isCurrent()) return
     const data = props.kind === 'risk'
       ? await listRiskTasks(auth.token, params)
       : await listHazardInspectionTasks(auth.token, params)
-    rows.value = reset ? data.records : [...rows.value, ...data.records]
+    if (!isCurrent()) return
+    rows.value = mergePageRows(reset ? [] : rows.value, data.records, item => item.id)
+    offset.value = data.records.length ? from + data.records.length : data.total
     total.value = data.total
     overview.value = data.overview
   } catch (error) {
-    loadError.value = getErrorMessage(error)
+    if (isCurrent()) {
+      loadError.value = getErrorMessage(error)
+      failedMore.value = !reset
+    }
   } finally {
-    loading.value = false
-    loadingMore.value = false
-    uni.stopPullDownRefresh()
+    if (isCurrent()) {
+      loading.value = false
+      loadingMore.value = false
+      uni.stopPullDownRefresh()
+    }
   }
 }
 
-function select(value: string) {
-  status.value = value as TaskStatus | ''
+function search() {
+  searchTerm.value = keyword.value.trim()
+  void load(true)
+}
+
+function select(value: TaskStatus | '') {
+  status.value = value
   void load(true)
 }
 
@@ -71,17 +94,21 @@ function title(item: RiskTask | HazardInspectionTask) {
 }
 
 function place(item: RiskTask | HazardInspectionTask) {
-  return props.kind === 'risk' ? `风险等级 ${(item as RiskTask).riskLevelName}` : (item as HazardInspectionTask).inspectionTypeName
+  if (props.kind === 'inspection') return (item as HazardInspectionTask).inspectionTypeName
+  const level = (item as RiskTask).riskLevelName
+  return level ? `风险等级 ${level}` : ''
 }
 
 function progress(item: RiskTask | HazardInspectionTask) {
-  return props.kind === 'risk'
-    ? `${(item as RiskTask).completedItemCount}/${item.itemCount} 项`
-    : `${(item as HazardInspectionTask).normalCount + (item as HazardInspectionTask).abnormalCount}/${item.itemCount} 项`
+  if (!Number.isFinite(item.itemCount)) return ''
+  const checked = props.kind === 'risk'
+    ? (item as RiskTask).completedItemCount
+    : (item as HazardInspectionTask).normalCount + item.abnormalCount
+  return `${Number.isFinite(checked) ? checked : '—'}/${item.itemCount} 项`
 }
 
 function abnormal(item: RiskTask | HazardInspectionTask) {
-  return props.kind === 'risk' ? (item as RiskTask).abnormalCount : (item as HazardInspectionTask).abnormalCount
+  return item.abnormalCount
 }
 
 function open(item: RiskTask | HazardInspectionTask) {
@@ -90,36 +117,39 @@ function open(item: RiskTask | HazardInspectionTask) {
 
 onShow(() => load(true))
 onPullDownRefresh(() => load(true))
-onReachBottom(() => { if (!finished.value) void load(false) })
+onReachBottom(() => { if (!loadError.value) void load(false) })
+onBeforeUnmount(requests.invalidate)
 </script>
 
 <template>
 <wd-config-provider :theme="themeName">
   <view class="page-shell">
-    <MobileTopBar capsule="none"
+    <MobileTopBar capsule="always"
       :title="kind === 'risk' ? '风险巡查' : '隐患排查'"
       :eyebrow="kind === 'risk' ? 'RISK CONTROL' : 'FIELD INSPECTION'"
       :subtitle="kind === 'risk' ? '分级管控，责任到人' : '逐项检查，异常转隐患'"
       show-back
     />
     <view class="page-body task-body">
-      <SmisLoadError v-if="loadError" :message="loadError" @retry="load()" />
+      <MobileLoadError v-if="loadError && !failedMore" :message="loadError" @retry="load()" />
       <MobileMetricGrid :items="[{ label: '任务总数', value: overview.total }, { label: '执行中', value: overview.inProgress }, { label: '已逾期', value: overview.overdue, tone: 'danger' }]" />
 
       <view class="task-tools surface-card">
-        <SmisSearchBar
+        <MobileSearch
           v-model="keyword"
-          :placeholder="kind === 'risk' ? '任务编号 / 风险点' : '任务编号 / 排查对象'"
-          action-label="搜索"
-          embedded
+          name="task-keyword"
+          label="搜索任务"
+          :placeholder="kind === 'risk' ? '任务编号或风险点' : '输入任务编号'"
+          compact-action
           :disabled="loading"
-          @search="load(true)"
+          @submit="search"
+          @clear="search"
         />
-        <SmisStatusTabs :model-value="status" :tabs="tabs" embedded @update:model-value="select" />
+        <MobileSegmented label="筛选任务状态" :model-value="status" :options="tabs" @update:model-value="select" />
       </view>
 
-      <view v-if="loading" class="loading surface-card" aria-live="polite">
-        <wd-loading color="var(--smis-primary)" /><text>正在同步任务…</text>
+      <view v-if="loading" class="loading surface-card">
+        <MobileLoadingStatus label="正在同步任务…" />
       </view>
       <view v-else-if="rows.length" class="task-list">
         <SmisTaskCard
@@ -133,11 +163,20 @@ onReachBottom(() => { if (!finished.value) void load(false) })
           :end="formatDate(item.plannedEndAt)"
           :progress="progress(item)"
           :danger-count="abnormal(item)"
-          @tap="open(item)"
+          @click="open(item)"
         />
-        <SmisListFooter :loading="loadingMore" :finished="finished" :count="rows.length" />
+        <MobileListFooter
+          :loading="loadingMore" :finished="finished" :count="rows.length" :total="total"
+          :can-load-more="!loadError && !finished" :error="failedMore ? loadError : undefined"
+          error-title="无法加载更多任务" @more="load(false)"
+        />
       </view>
-      <SmisEmpty v-else-if="!loadError" title="暂无排查任务" description="任务由 Web 端计划生成，发布后会同步到这里" />
+      <MobileEmptyState
+        v-else-if="!loadError"
+        icon="shield"
+        :title="kind === 'risk' ? '暂无巡查任务' : '暂无排查任务'"
+        :description="searchTerm || status ? '试试更换关键词或任务状态' : '任务发布后会同步到这里'"
+      />
     </view>
   </view>
 </wd-config-provider>
@@ -147,5 +186,5 @@ onReachBottom(() => { if (!finished.value) void load(false) })
 .task-body { padding-top: 28rpx; padding-bottom: 56rpx; }
 .task-tools { margin-top: 20rpx; padding: 10rpx; display: flex; flex-direction: column; gap: 8rpx; overflow: hidden; }
 .task-list { margin-top: 20rpx; display: flex; flex-direction: column; gap: 18rpx; }
-.loading { min-height: 280rpx; margin-top: 20rpx; color: var(--smis-text-secondary); display: flex; align-items: center; justify-content: center; gap: 14rpx; font-size: clamp(13px, 20rpx, 14px); }
+.loading { min-height: 280rpx; margin-top: 20rpx; display: flex; align-items: center; justify-content: center; font-size: clamp(13px, 20rpx, 14px); }
 </style>

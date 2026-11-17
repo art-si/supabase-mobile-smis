@@ -8,31 +8,31 @@ The driver mobile project supplies the familiar login structure and mobile shell
 
 ## Visual language
 
-- Primary: indigo `#4f46e5`, deep indigo `#312e81`, bright blue `#2563eb`.
+- Primary: use the Pro theme presets. Fresh installations use Forest (`#0f766e`), as in the driver and shipper apps. Keep the user's saved theme.
 - Safety accent: amber `#f59e0b`; danger `#e5484d`; success `#0f9f6e`.
 - Text: graphite `#152033`; secondary `#66738a`; muted `#98a3b5`.
-- Canvas: cool paper `#f2f5fa`; controls `#f5f7fb`; surfaces white.
+- Canvas, controls, and surfaces follow the shared Pro workspace tokens.
 - Use semantic color only for status and action meaning. Do not color every module differently.
-- Hero and top bars use a deep-indigo-to-blue gradient, subtle grid and restrained glow. Content surfaces remain light.
+- Use the shared light `MobileTopBar` on the page canvas. Reserve accent color for actions, active navigation and state.
 
 ## Depth strategy
 
 Use a light three-level hierarchy:
 
 1. Page canvas is flat cool gray.
-2. Content cards use a fine border and soft low shadow.
-3. Floating navigation and primary actions use stronger shadow or blur.
+2. Content cards use a fine border on a white surface.
+3. Reserve elevated layers for transient overlays and fixed actions.
 
 Avoid negative-margin card overlaps below headers. Summary cards begin after the header with visible breathing room. Avoid stacked heavy shadows and decorative glass effects inside data-dense content.
 
 ## Layout and spacing
 
-- Mobile content width is full viewport; desktop H5 is capped at `520px` and centered.
-- Page horizontal padding: `28rpx`; hero horizontal padding: `32–34rpx`.
+- The shared Pro frame spans the mobile viewport and caps centered content at `560px` on desktop H5.
+- Use the shared workspace inset, with safe-area clearance where needed.
 - Use an 8px rhythm expressed in rpx: common gaps are `16/18/20/24/28/32rpx`.
 - Card radius: `26rpx`; major header/footer radius: `32–36rpx`; controls: `18rpx`.
 - Standard control height: `88rpx`; all tap targets should be at least `88rpx` in one dimension when practical.
-- Pages with bottom navigation reserve `174rpx + safe-area`; fixed action pages reserve their own action-bar clearance.
+- Tab pages reserve the shared navigation height plus content breathing room. Tab-page action docks sit directly above the navigation.
 
 ## Typography
 
@@ -48,15 +48,16 @@ Avoid negative-margin card overlaps below headers. Summary cards begin after the
 
 ### Top bar
 
-- Always shows location (title), context (subtitle) and optional operational eyebrow.
-- Back and menu controls are circular translucent surfaces with accessible labels.
-- Title and subtitle truncate to one line; business content belongs below the bar.
+- Shows the page title, with optional context when useful.
+- Back and menu controls use the same light, circular treatment and accessible labels as TMS.
+- Use the shared heading layout; allow long business content to wrap.
 
 ### Bottom navigation
 
 - Five destinations: 首页、消息、随手拍、工作台、我的.
-- Active destination uses an indigo soft pill. The center quick-report action is raised and filled with the primary gradient.
-- Keep it floating above the safe area and reserve page content clearance.
+- Shared `MobileBottomNav` is a flat white bar with a top divider, flush with the bottom of the viewport. The active destination uses the theme accent for its icon and label.
+- The center quick-report entry stays a tab; its round accent icon follows the shipper app's center action treatment.
+- Use the shared height and safe-area tokens; labels and the bar remain usable at larger text sizes.
 
 ### Cards and lists
 
@@ -70,7 +71,7 @@ Avoid negative-margin card overlaps below headers. Summary cards begin after the
 
 ### Search and status filters
 
-- Use `SmisSearchBar` for keyword searches and `SmisStatusTabs` for status filters.
+- Use `MobileSearch` for keyword searches and `MobileSegmented` for status filters.
 - Status filters stay on one horizontal rail and scroll when necessary; never stack into a tall vertical filter block on mobile.
 - Search, filter and result cards remain separate surfaces so filters do not visually merge with the first record.
 
@@ -85,7 +86,7 @@ Avoid negative-margin card overlaps below headers. Summary cards begin after the
 - Evidence upload keeps local previews visible while uploading and provides an in-place retry state on failure; H5 blob URLs never determine the remote object extension directly.
 - Site selection uses the tenant-wide hierarchy. Organization assignment and physical site selection are related business facts, but a department without directly-owned sites must not produce an empty picker.
 - Primary submit action comes last and is not obscured by bottom navigation.
-- Multiline fields use `SmisTextareaField`: visible label/hint, inset control tone, explicit native-textarea height, compact character-count rail and a focus-within ring. Use the compact variant for secondary notes and abnormal-item remarks.
+- Use `MobileSelect` for single-choice fields and `MobileField` for multiline values. Keep labels visible and add a hint and a character count where a limit matters.
 - On tab-root forms, keep the primary submit action in a translucent dock immediately above bottom navigation and reserve both layers in page padding.
 - Picker and sheet overlays must render above fixed submission docks and bottom navigation; tab-root pickers use the shared overlay tier rather than the component-library default.
 
@@ -124,6 +125,6 @@ Avoid negative-margin card overlaps below headers. Summary cards begin after the
 - Header: `src/components/SmisTopBar.vue`.
 - Navigation: `src/components/SmisBottomNav.vue`.
 - List record pattern: `src/components/SmisTaskCard.vue`.
-- Search/status/list feedback: `src/components/SmisSearchBar.vue`, `src/components/SmisStatusTabs.vue`, `src/components/SmisListFooter.vue`.
+- Search, status and list feedback: Pro `MobileSearch`, `MobileSegmented`, `MobileLoadError` and `MobileListFooter`.
 - Form sections, location and evidence: `src/components/SmisFormSection.vue`, `src/components/SmisLocationField.vue`, `src/components/SmisEvidenceUpload.vue`.
 - Empty state: `src/components/SmisEmpty.vue`.

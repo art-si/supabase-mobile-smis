@@ -53,7 +53,11 @@ pnpm build:h5
 pnpm build:mp-weixin
 ```
 
-The H5 build is written to `docs/`. The WeChat Mini Program build is written to `dist/build/mp-weixin/` and still requires the correct AppID, allowed domains, and camera/photo-library permissions.
+The H5 build writes `docs/` with `.nojekyll`, relative asset URLs, and hash routing so it can run under the repository's subpath. To publish to GitHub Pages, commit the generated `docs/` in this SMIS repository and sync it to GitHub. In the GitHub repository, go to **Settings → Pages**, select **Deploy from a branch → `master` → `/docs`**, and save.
+
+The WeChat Mini Program build is written to `dist/build/mp-weixin/` and still requires the correct AppID, allowed domains, and camera/photo-library permissions.
+
+One-tap phone sign-in is available in the WeChat Mini Program only. Configure the SMIS AppID and WeChat phone authorization, prepare the main repository's `mobile-wechat-auth` service, then set `VITE_ENABLE_WECHAT_PHONE_LOGIN=true` in the build environment. To set it up, sign in with a password and authorize the phone number in the Me page within 10 minutes. If the time expires, sign in with a password again. A number entered only in an employee record does not qualify. Account and password sign-in remains available.
 
 ## Security
 

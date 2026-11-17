@@ -1,0 +1,1 @@
+import{Q as t,mt as a,rt as s}from"./index-jHW137Cl.js";import{t as i}from"./SmisTaskDetailView.Cyh-3SYp.js";var e=s({__name:"detail",setup:s=>(s,e)=>(a(),t(i,{kind:"inspection"}))});export{e as default};

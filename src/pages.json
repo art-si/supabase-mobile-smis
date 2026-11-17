@@ -117,8 +117,10 @@
     "navigationBarTextStyle": "black",
     "navigationBarTitleText": "SMIS 安全生产",
     "navigationBarBackgroundColor": "#ffffff",
-    "backgroundColor": "#f2f5fa",
+    // #ifdef H5
     "rpxCalcMaxDeviceWidth": 520,
-    "rpxCalcBaseDeviceWidth": 520
+    "rpxCalcBaseDeviceWidth": 520,
+    // #endif
+    "backgroundColor": "#f2f5fa"
   }
 }

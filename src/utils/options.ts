@@ -4,12 +4,7 @@ export interface HierarchyNode {
   children?: HierarchyNode[]
 }
 
-export interface PickerOption {
-  label: string
-  value: string
-}
-
-export function flattenHierarchy<T extends HierarchyNode>(rows: T[]): T[] {
+function flattenHierarchy<T extends HierarchyNode>(rows: T[]): T[] {
   const result: T[] = []
   const seen = new Set<string>()
 
@@ -27,7 +22,7 @@ export function flattenHierarchy<T extends HierarchyNode>(rows: T[]): T[] {
   return result
 }
 
-export function toHierarchyOptions<T extends HierarchyNode>(rows: T[], labelOf: (item: T) => string): PickerOption[] {
+export function toHierarchyOptions<T extends HierarchyNode>(rows: T[], labelOf: (item: T) => string) {
   const flat = flattenHierarchy(rows)
   const byId = new Map(flat.map((item) => [item.id, item]))
 
@@ -42,6 +37,6 @@ export function toHierarchyOptions<T extends HierarchyNode>(rows: T[], labelOf: 
       current = current.parentId ? byId.get(current.parentId) : undefined
     }
 
-    return { value: item.id, label: labels.filter(Boolean).join(' / ') }
+    return { id: item.id, name: labels.filter(Boolean).join(' / ') }
   })
 }

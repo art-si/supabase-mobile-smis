@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import SmisLoadError from '@/components/business/SmisLoadError.vue'
+import { activateActionKey, preventActionKey } from '@mobile-core/action-keyboard'
+import MobileLoadError from '@mobile-core/components/MobileLoadError.vue'
 
 import { usePageTheme } from '@/composables/usePageTheme'
 import { computed, ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import MobileTopBar from '@mobile-core/components/MobileTopBar.vue'
-import SmisIcon from '@/components/business/SmisIcon.vue'
+import MobileIcon from '@mobile-core/components/MobileIcon.vue'
 import SmisStatusTag from '@/components/business/SmisStatusTag.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useDictionaryStore } from '@/stores/dictionary'
@@ -60,15 +61,15 @@ onLoad((query) => load(String(query?.id || '')))
 <template>
 <wd-config-provider :theme="themeName">
   <view class="page-shell">
-    <MobileTopBar capsule="none" title="设备详情" :subtitle="item?.equipmentCode" show-back />
+    <MobileTopBar capsule="always" title="设备详情" :subtitle="item?.equipmentCode" show-back />
     <view class="page-body detail-body">
-      <SmisLoadError v-if="loadError" :message="loadError" @retry="load(currentId)" />
+      <MobileLoadError v-if="loadError" :message="loadError" @retry="load(currentId)" />
       <view v-if="loading" class="loading"><wd-loading color="var(--smis-primary)" /></view>
 
       <template v-else-if="item">
         <view class="identity surface-card">
           <image v-if="item.photoUrl" :src="item.photoUrl" mode="aspectFill" />
-          <view v-else class="identity__fallback"><SmisIcon name="equipment" size="52rpx" /></view>
+          <view v-else class="identity__fallback mobile-icon-box"><MobileIcon name="equipment" size="52rpx" /></view>
           <view class="identity__copy">
             <view class="identity__tags">
               <SmisStatusTag :status="item.operationStatus" />
@@ -94,7 +95,7 @@ onLoad((query) => load(String(query?.id || '')))
         <view class="fact-card responsibility-card surface-card">
           <text class="card-title">责任与位置</text>
           <view class="location-panel">
-            <view class="info-icon"><SmisIcon name="location" size="32rpx" /></view>
+            <view class="info-icon mobile-icon-box"><MobileIcon name="location" size="32rpx" /></view>
             <view>
               <text>安装位置</text>
               <text class="strong">{{ item.location?.locationName || item.detailLocation || '--' }}</text>
@@ -103,11 +104,11 @@ onLoad((query) => load(String(query?.id || '')))
           </view>
           <view class="responsibility-grid">
             <view class="responsibility-item">
-              <view class="info-icon"><SmisIcon name="organization" size="30rpx" /></view>
+              <view class="info-icon mobile-icon-box"><MobileIcon name="organization" size="30rpx" /></view>
               <view><text>使用组织</text><text class="strong">{{ item.usingOrganization?.organizationName || '--' }}</text></view>
             </view>
             <view class="responsibility-item">
-              <view class="info-icon"><SmisIcon name="user" size="30rpx" /></view>
+              <view class="info-icon mobile-icon-box"><MobileIcon name="user" size="30rpx" /></view>
               <view><text>设备责任人</text><text class="strong">{{ item.responsible?.employeeName || '--' }}</text></view>
             </view>
           </view>
@@ -122,17 +123,20 @@ onLoad((query) => load(String(query?.id || '')))
         <view v-if="item.nameplateUrl && !nameplateFailed" class="nameplate-card surface-card">
           <view class="nameplate-card__head">
             <view><text class="card-title">设备铭牌</text><text>点击图片可查看完整信息</text></view>
-            <SmisIcon name="photo" size="32rpx" />
+            <MobileIcon name="photo" size="32rpx" />
           </view>
-          <image
-            class="nameplate"
-            :src="item.nameplateUrl"
-            mode="aspectFit"
+          <button
+            class="mobile-action nameplate"
             role="button"
+            tabindex="0"
             aria-label="预览设备铭牌"
-            @tap="previewNameplate"
-            @error="nameplateFailed = true"
-          />
+            hover-class="mobile-action--pressed"
+            @click="previewNameplate"
+            @keydown="preventActionKey"
+            @keyup="activateActionKey($event, previewNameplate)"
+          >
+            <image class="nameplate__image" :src="item.nameplateUrl" mode="aspectFit" aria-hidden="true" @error="nameplateFailed = true" />
+          </button>
         </view>
       </template>
 
@@ -147,8 +151,9 @@ onLoad((query) => load(String(query?.id || '')))
 .loading { min-height: 320rpx; color: var(--smis-text-muted); display: flex; align-items: center; justify-content: center; }
 .identity { padding: 26rpx; display: flex; align-items: center; gap: 22rpx; }
 .identity > image,
-.identity__fallback { width: 112rpx; height: 112rpx; flex: 0 0 112rpx; border-radius: 22rpx; background: #e9f1f6; }
-.identity__fallback { color: var(--smis-primary); display: flex; align-items: center; justify-content: center; }
+.identity__fallback { width: 112rpx; height: 112rpx; border-radius: 22rpx; background: #e9f1f6; }
+.identity > image { flex: none; }
+.identity__fallback { color: var(--smis-primary); }
 .identity__copy { min-width: 0; flex: 1; display: flex; flex-direction: column; justify-content: center; }
 .identity__tags { display: flex; align-items: center; flex-wrap: wrap; gap: 8rpx; }
 .identity__name { margin-top: 12rpx; color: var(--smis-text); font-size: clamp(15px, 29rpx, 17px); font-weight: 700; line-height: 1.35; }
@@ -170,7 +175,7 @@ onLoad((query) => load(String(query?.id || '')))
 .detail-location { margin-top: 5rpx; font-size: clamp(13px, 19rpx, 14px) !important; }
 .responsibility-grid { margin-top: 16rpx; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12rpx; }
 .responsibility-item { min-width: 0; padding: 20rpx; border: 0; background: var(--smis-panel); border-radius: 18rpx; display: flex; align-items: center; gap: 14rpx; }
-.info-icon { width: 54rpx; height: 54rpx; flex: 0 0 54rpx; border-radius: 16rpx; color: var(--smis-primary); background: var(--smis-primary-soft); display: flex; align-items: center; justify-content: center; }
+.info-icon { width: 54rpx; height: 54rpx; border-radius: 16rpx; color: var(--smis-primary); background: var(--smis-primary-soft); }
 .inspect-card { margin-top: 18rpx; padding: 25rpx 14rpx; border-radius: 22rpx; color: #fff; background: var(--smis-hero-gradient); display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .inspect-card > view { min-width: 0; display: flex; flex-direction: column; align-items: center; }
 .inspect-card > view + view { border-left: 1rpx solid rgba(255, 255, 255, .14); }
@@ -181,7 +186,8 @@ onLoad((query) => load(String(query?.id || '')))
 .nameplate-card__head > view { min-width: 0; display: flex; flex-direction: column; }
 .nameplate-card__head .card-title { margin: 0; }
 .nameplate-card__head text:last-child { margin-top: 5rpx; color: var(--smis-text-muted); font-size: clamp(13px, 19rpx, 14px); }
-.nameplate { width: 100%; height: 360rpx; margin-top: 20rpx; border-radius: 18rpx; background: var(--smis-control-bg); display: block; }
+.nameplate.mobile-action { width: 100%; height: 360rpx; margin-top: 20rpx; border-radius: 18rpx; background: var(--smis-control-bg); display: block; overflow: hidden; }
+.nameplate__image { display: block; width: 100%; height: 100%; }
 
 @media screen and (max-width: 350px) {
   .responsibility-grid { grid-template-columns: 1fr; }

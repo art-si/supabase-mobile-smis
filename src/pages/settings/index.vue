@@ -1,180 +1,26 @@
 <script setup lang="ts">
+import { onShow } from '@dcloudio/uni-app'
+import MobileAppearanceSettings from '@mobile-core/components/MobileAppearanceSettings.vue'
 import MobileTopBar from '@mobile-core/components/MobileTopBar.vue'
 import { usePageTheme } from '@/composables/usePageTheme'
-import { THEME_PRESETS, type ThemePresetId } from '@mobile-core/theme'
+import { useAuthStore } from '@/stores/auth'
 
 const { theme, themeName } = usePageTheme()
-
-function selectTheme(preset: ThemePresetId) {
-  if (!theme.selectPreset(preset)) {
-    uni.showToast({ title: '主题已切换，但保存失败；下次打开请重新选择', icon: 'none' })
-  }
-}
+const auth = useAuthStore()
+onShow(() => { void auth.ensureValidSession() })
 </script>
 
 <template>
-<wd-config-provider :theme="themeName">
-  <view class="settings-page page">
-    <MobileTopBar capsule="none" title="外观设置" eyebrow="偏好设置" subtitle="调整安全生产移动端的显示方式" show-back />
-    <scroll-view scroll-y class="settings-page__scroll">
-      <view class="settings-page__content">
-        <view class="settings-card card">
-          <view class="settings-card__head">
-            <view>
-              <text class="section-eyebrow">外观设置</text>
-              <text class="section-title">主题配色</text>
-            </view>
-            <text class="settings-card__hint">切换后立即生效</text>
-          </view>
-          <view class="theme-options" role="group" aria-label="主题配色">
-            <button
-              v-for="preset in THEME_PRESETS"
-              :key="preset.id"
-              class="theme-option"
-              :class="[`smis-theme-${preset.id}`, { 'theme-option--active': theme.preset === preset.id }]"
-              :aria-pressed="theme.preset === preset.id"
-              @tap="selectTheme(preset.id)"
-            >
-              <view class="theme-option__swatch" aria-hidden="true" />
-              <view class="theme-option__copy">
-                <text class="theme-option__name">{{ preset.name }}</text>
-                <text class="theme-option__description">{{ preset.description }}</text>
-              </view>
-              <text class="theme-option__state">{{ theme.preset === preset.id ? '已选' : '选择' }}</text>
-            </button>
-          </view>
-        </view>
-        <text class="settings-page__note">所选配色会应用到所有页面，并在下次打开时保留。</text>
+  <wd-config-provider :theme="themeName">
+    <view class="page-shell">
+      <MobileTopBar capsule="always" title="外观设置" eyebrow="偏好设置" subtitle="调整安全生产移动端的显示方式" show-back />
+      <view class="page-body" role="main">
+        <MobileAppearanceSettings
+          :model-value="theme.preset"
+          :persist-preset="theme.selectPreset"
+          hint="主题色会立即应用到所有页面，并在下次打开时保留。"
+        />
       </view>
-    </scroll-view>
-  </view>
-</wd-config-provider>
+    </view>
+  </wd-config-provider>
 </template>
-
-<style scoped lang="scss">
-.settings-page {
-  height: 100vh;
-  height: 100dvh;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-}
-
-.settings-page__scroll {
-  flex: 1;
-  min-height: 0;
-  height: auto;
-}
-
-.settings-page__content {
-  padding: 28rpx 28rpx calc(32rpx + env(safe-area-inset-bottom));
-}
-
-.settings-card {
-  padding: 30rpx;
-}
-
-.settings-card__head {
-  display: flex;
-  align-items: flex-start;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  gap: 20rpx;
-}
-
-.settings-card__head > view {
-  min-width: 0;
-}
-
-.section-title {
-  display: block;
-  margin-top: 7rpx;
-}
-
-.settings-card__hint {
-  flex: none;
-  color: var(--smis-text-secondary);
-  font-size: clamp(13px, 21rpx, 14px);
-}
-
-.theme-options {
-  margin-top: 26rpx;
-  display: flex;
-  flex-direction: column;
-  gap: 12rpx;
-}
-
-.theme-option {
-  width: 100%;
-  min-height: max(128rpx, 72px);
-  margin: 0;
-  padding: 22rpx;
-  border: 2rpx solid var(--smis-line);
-  border-radius: var(--smis-control-radius);
-  color: var(--smis-text);
-  background: var(--smis-panel);
-  display: flex;
-  align-items: center;
-  gap: 18rpx;
-  text-align: left;
-  line-height: 1.25;
-}
-
-.theme-option::after {
-  border: 0;
-}
-
-.theme-option--active,
-.theme-option:active {
-  border-color: var(--smis-primary);
-  background: var(--smis-primary-soft);
-}
-
-.theme-option:focus-visible {
-  outline: 4rpx solid rgba(var(--smis-primary-rgb), 0.35);
-  outline-offset: 3rpx;
-}
-
-.theme-option__swatch {
-  flex: none;
-  width: 56rpx;
-  height: 56rpx;
-  border: 3rpx solid #fff;
-  border-radius: 50%;
-  background: var(--smis-primary-gradient);
-  box-shadow: 0 0 0 1rpx rgba(21, 32, 51, 0.12);
-}
-
-.theme-option__copy {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 8rpx;
-}
-
-.theme-option__name {
-  font-size: clamp(14px, 26rpx, 15px);
-  font-weight: 700;
-}
-
-.theme-option__description {
-  color: var(--smis-text-secondary);
-  font-size: clamp(13px, 22rpx, 14px);
-}
-
-.theme-option__state {
-  flex: none;
-  color: var(--smis-primary);
-  font-size: clamp(13px, 22rpx, 14px);
-  font-weight: 700;
-}
-
-.settings-page__note {
-  display: block;
-  margin: 22rpx 6rpx 0;
-  color: var(--smis-text-secondary);
-  font-size: clamp(13px, 22rpx, 14px);
-  line-height: 1.5;
-}
-</style>

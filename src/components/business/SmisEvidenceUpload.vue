@@ -1,6 +1,8 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
-import SmisIcon from './SmisIcon.vue'
+import { computed, ref, watch } from 'vue'
+import { activateActionKey, preventActionKey } from '@mobile-core/action-keyboard'
+import MobileEvidence from '@mobile-core/components/MobileEvidence.vue'
+import MobileInlineLabel from '@mobile-core/components/MobileInlineLabel.vue'
 import { getErrorMessage, uploadFile } from '@/api/supabase'
 import { chooseImages } from '@mobile-core/files'
 
@@ -39,7 +41,11 @@ const emit = defineEmits<{
 
 const items = ref<EvidenceItem[]>([])
 const choosing = ref(false)
+const pickerError = ref('')
+const evidenceError = computed(() => pickerError.value || items.value.find((item) => item.status === 'failed')?.error)
 const activeUploads = ref(0)
+const images = computed(() => items.value.map(({ url }) => url))
+const busy = computed(() => choosing.value || activeUploads.value > 0)
 let nextId = 1
 
 function createRemoteItems(urls: string[]): EvidenceItem[] {
@@ -55,7 +61,7 @@ function sameValues(left: string[], right: string[]) {
 }
 
 function updateBusyState() {
-  emit('update:uploading', choosing.value || activeUploads.value > 0)
+  emit('update:uploading', busy.value)
 }
 
 function syncValue() {
@@ -68,7 +74,7 @@ watch(() => props.modelValue, (urls) => {
 }, { immediate: true })
 
 async function uploadItem(item: EvidenceItem) {
-  if (!item.localPath) return false
+  if (!item.localPath) return
   item.status = 'uploading'
   item.error = ''
   activeUploads.value += 1
@@ -79,11 +85,9 @@ async function uploadItem(item: EvidenceItem) {
     item.remoteUrl = remoteUrl
     item.status = 'ready'
     syncValue()
-    return true
   } catch (error) {
     item.status = 'failed'
     item.error = getErrorMessage(error, '照片上传失败，请重试')
-    return false
   } finally {
     activeUploads.value = Math.max(0, activeUploads.value - 1)
     updateBusyState()
@@ -93,6 +97,7 @@ async function uploadItem(item: EvidenceItem) {
 async function addPhotos() {
   if (props.disabled || choosing.value || activeUploads.value || items.value.length >= props.max) return
   choosing.value = true
+  pickerError.value = ''
   updateBusyState()
   try {
     const paths = await chooseImages(props.max - items.value.length, '选择照片失败')
@@ -104,126 +109,81 @@ async function addPhotos() {
       status: 'uploading'
     }))
     items.value = [...items.value, ...additions]
-    const results = await Promise.all(additions.map(uploadItem))
-    if (results.some((success) => !success)) {
-      uni.showToast({ title: '部分照片上传失败，请点击重试', icon: 'none', duration: 2500 })
-    }
+    await Promise.all(items.value.slice(-additions.length).map(uploadItem))
   } catch (error) {
-    uni.showToast({ title: getErrorMessage(error, '无法选择照片，请重试'), icon: 'none', duration: 2500 })
+    pickerError.value = getErrorMessage(error, '无法选择照片，请重试')
   } finally {
     choosing.value = false
     updateBusyState()
   }
 }
 
-async function retry(item: EvidenceItem) {
-  if (props.disabled || item.status !== 'failed') return
-  const success = await uploadItem(item)
-  if (!success) uni.showToast({ title: item.error || '照片上传失败，请重试', icon: 'none', duration: 2500 })
+function retry(item?: EvidenceItem) {
+  if (props.disabled || item?.status !== 'failed') return
+  void uploadItem(item)
 }
 
-function remove(item: EvidenceItem) {
-  if (props.disabled || item.status === 'uploading') return
+function remove(item?: EvidenceItem) {
+  if (!item || props.disabled || item.status === 'uploading') return
   items.value = items.value.filter((candidate) => candidate.id !== item.id)
   syncValue()
 }
 
-function preview(item: EvidenceItem) {
-  const urls = items.value.filter((candidate) => candidate.status !== 'failed').map((candidate) => candidate.url)
-  if (urls.length) uni.previewImage({ urls, current: item.url })
+function preview(item?: EvidenceItem) {
+  if (item) uni.previewImage({ urls: images.value, current: item.url })
 }
 </script>
 
 <template>
   <view class="evidence-upload">
     <view class="evidence-upload__head">
-      <view>
+      <view class="evidence-upload__copy">
         <text class="evidence-upload__title">{{ title }}<text v-if="required" class="required-mark"> *</text></text>
         <text class="evidence-upload__description">{{ description }}</text>
       </view>
       <text class="evidence-upload__quota">{{ successfulUrls().length }} / {{ max }}</text>
     </view>
 
-    <view class="evidence-upload__grid">
-      <view v-for="item in items" :key="item.id" class="evidence-upload__preview">
-        <button class="evidence-upload__preview-action" aria-label="预览现场照片" @tap="preview(item)">
-          <image :src="item.url" mode="aspectFill" lazy-load />
-        </button>
-
-        <view v-if="item.status === 'uploading'" class="evidence-upload__mask" aria-live="polite">
-          <wd-loading color="#ffffff" size="34rpx" />
-          <text>上传中…</text>
-        </view>
+    <MobileEvidence
+      class="evidence-upload__controls"
+      :images="images" :label="title" :limit="max" :disabled="disabled" :uploading="busy"
+      @preview="preview(items[$event])" @remove="remove(items[$event])" @upload="addPhotos"
+    >
+      <template #status="{ index }">
+        <text v-if="items[index]?.status === 'uploading'" class="evidence-upload__state" role="status">上传中…</text>
         <button
-          v-else-if="item.status === 'failed'"
-          class="evidence-upload__mask evidence-upload__retry"
-          aria-label="重新上传这张照片"
-          @tap="retry(item)"
+          v-else-if="items[index]?.status === 'failed'"
+          class="mobile-action evidence-upload__retry"
+          role="button"
+          :tabindex="disabled || busy ? -1 : 0"
+          :aria-label="`重新上传第 ${index + 1} 张${title}`"
+          :disabled="disabled || busy"
+          :aria-disabled="disabled || busy || undefined"
+          hover-class="mobile-action--pressed"
+          @click="retry(items[index])"
+          @keydown="preventActionKey"
+          @keyup="activateActionKey($event, () => retry(items[index]))"
         >
-          <SmisIcon name="refresh" size="34rpx" />
-          <text>上传失败</text>
-          <text class="small">点击重试</text>
+          <MobileInlineLabel icon="refresh" label="重试上传" icon-size="14px" />
         </button>
-
-        <button
-          v-if="!disabled && item.status !== 'uploading'"
-          class="evidence-upload__remove"
-          aria-label="移除这张照片"
-          @tap="remove(item)"
-        >
-          <SmisIcon name="close" size="25rpx" />
-        </button>
-      </view>
-
-      <button
-        v-if="items.length < max"
-        class="evidence-upload__add"
-        :disabled="disabled || choosing || activeUploads > 0"
-        @tap="addPhotos"
-      >
-        <wd-loading
-          v-if="choosing || activeUploads > 0"
-          type="ring"
-          color="var(--smis-primary)"
-          size="30rpx"
-        />
-        <view v-else class="evidence-upload__add-content">
-          <SmisIcon name="camera" size="42rpx" />
-          <text>拍照上传</text>
-        </view>
-      </button>
-    </view>
-    <text class="evidence-upload__hint">已上传 {{ successfulUrls().length }}/{{ max }} 张，可从相册选择或直接拍摄</text>
+      </template>
+    </MobileEvidence>
+    <text v-if="evidenceError" class="smis-inline-error" role="alert">{{ evidenceError }}</text>
+    <text v-else class="evidence-upload__hint">可从相册选择或直接拍摄</text>
   </view>
 </template>
 
 <style scoped lang="scss">
 .evidence-upload__head { display: flex; align-items: flex-start; justify-content: space-between; gap: 18rpx; }
-.evidence-upload__head > view { min-width: 0; flex: 1; display: flex; flex-direction: column; }
+.evidence-upload__copy { min-width: 0; flex: 1; display: flex; flex-direction: column; }
 .evidence-upload__title { color: var(--smis-text); font-size: 14px; font-weight: 700; }
 .required-mark { color: var(--smis-danger); }
 .evidence-upload__description { margin-top: 6rpx; color: var(--smis-text-muted); font-size: clamp(13px, 19rpx, 14px); line-height: 1.45; }
 .evidence-upload__quota { flex: 0 0 auto; color: var(--smis-text-muted); font-size: clamp(13px, 19rpx, 14px); font-variant-numeric: tabular-nums; }
-.evidence-upload__grid { margin-top: 16rpx; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12rpx; }
-.evidence-upload__preview,
-.evidence-upload__add { box-sizing: border-box; position: relative; width: 100%; min-width: 0; aspect-ratio: 1; margin: 0; padding: 0; overflow: hidden; border-radius: 17rpx; }
-.evidence-upload__preview { background: var(--smis-control-bg); box-shadow: inset 0 0 0 1rpx rgba(0, 0, 0, .08); }
-.evidence-upload__preview-action { width: 100%; height: 100%; margin: 0; padding: 0; border: 0; border-radius: inherit; background: transparent; }
-.evidence-upload__preview-action image { display: block; width: 100%; height: 100%; }
-.evidence-upload__mask { position: absolute; inset: 0; z-index: 2; margin: 0; padding: 12rpx; border: 0; border-radius: inherit; color: #fff; background: rgba(18, 25, 43, .66); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6rpx; font-size: clamp(13px, 18rpx, 14px); line-height: 1.2; backdrop-filter: blur(5rpx); }
-.evidence-upload__retry { width: 100%; height: 100%; }
-.evidence-upload__retry .small { color: rgba(255, 255, 255, .72); font-size: clamp(13px, 16rpx, 14px); }
-.evidence-upload__remove { position: absolute; top: 6rpx; right: 6rpx; z-index: 3; width: 44px; height: 44px; margin: 0; padding: 0; border: 0; border-radius: 50%; color: #fff; background: rgba(18, 25, 43, .72); display: flex; align-items: center; justify-content: center; box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, .18); }
-.evidence-upload__add { border: 1px dashed rgba(var(--smis-primary-rgb), .38); color: var(--smis-primary); background: var(--smis-primary-soft); display: flex; align-items: center; justify-content: center; font-size: clamp(13px, 19rpx, 14px); font-weight: 700; line-height: 1; }
-.evidence-upload__add-content { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10rpx; line-height: 1; }
-.evidence-upload__add-content :deep(.wd-icon) { display: flex; line-height: 1; }
-.evidence-upload__add-content text { display: block; line-height: 1.2; }
+.evidence-upload__controls { margin-top: 8px; }
+.evidence-upload__state,
+.evidence-upload__retry { text-align: center; font-size: 12px; line-height: 1.4; }
+.evidence-upload__state { padding: 6px 4px; color: var(--smis-muted); }
+.evidence-upload__retry.mobile-action { --mobile-inline-pair-gap: 4px; --mobile-inline-pair-leading: 1.4; display: flex; align-items: center; justify-content: center; width: 100%; min-height: 44px; padding: 4px; color: var(--smis-red-strong); }
 .evidence-upload__hint { display: block; margin-top: 12rpx; color: var(--smis-text-muted); font-size: clamp(13px, 18rpx, 14px); line-height: 1.45; }
-.evidence-upload__add:active { transform: scale(.98); }
-.evidence-upload__add[disabled] { opacity: .62; }
-.evidence-upload button::after { display: none; }
-
-@media (prefers-reduced-motion: reduce) {
-  .evidence-upload__add:active { transform: none; }
-}
 </style>

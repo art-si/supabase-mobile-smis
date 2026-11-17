@@ -74,7 +74,11 @@ pnpm build:h5
 pnpm build:mp-weixin
 ```
 
-H5 生产文件输出到 `docs/`，可直接用于静态站点发布。微信小程序产物输出到 `dist/build/mp-weixin/`，还需在开发者工具和平台后台配置 AppID、合法域名、相机与相册权限。
+H5 生产文件输出到 `docs/`，包含 `.nojekyll`，使用相对资源路径和 hash 路由，支持部署到仓库子路径。要发布到 GitHub Pages，将构建后的 `docs/` 提交到此 SMIS 子仓并同步到 GitHub；在 GitHub 仓库的 **Settings → Pages** 选择 **Deploy from a branch → `master` → `/docs`**，然后保存。
+
+微信小程序产物输出到 `dist/build/mp-weixin/`，还需在开发者工具和平台后台配置 AppID、合法域名、相机与相册权限。
+
+手机一键登录只在微信小程序显示。配置 SMIS 自己的 AppID、开启微信手机号授权能力，并部署和配置主仓的 `mobile-wechat-auth` 服务后，将构建环境中的 `VITE_ENABLE_WECHAT_PHONE_LOGIN` 设为 `true`。首次使用时，先以账号密码登录，在 10 分钟内到「我的」绑定微信授权的手机号；超过时间请重新以密码登录。仅在员工档案填手机号不能开通此功能。默认关闭，H5 和小程序的账号密码登录均可继续使用。
 
 ## 数据与安全边界
 

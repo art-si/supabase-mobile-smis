@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onLoad } from '@dcloudio/uni-app'
 import MobileLogin from '@mobile-core/components/MobileLogin.vue'
+import { isWechatPhoneLoginEnabled, wechatPhoneLoginError } from '@mobile-core/wechat-phone-login'
 import { getErrorMessage } from '@/api/supabase'
 import { usePageTheme } from '@/composables/usePageTheme'
 import { useAuthStore } from '@/stores/auth'
@@ -33,7 +34,8 @@ async function authenticate(account: string, password: string) {
   await profile.load(auth.token, true)
 }
 
-function explainError(error: unknown) {
+function explainError(error: unknown, channel?: 'phone') {
+  if (channel === 'phone') return wechatPhoneLoginError(error)
   return getErrorMessage(error, '登录失败，请稍后重试')
 }
 </script>
@@ -50,6 +52,7 @@ function explainError(error: unknown) {
     help-text="安全生产账号由系统管理员开通与管理"
     forgot-password-text="请联系系统管理员重置密码"
     :authenticate="authenticate"
+    :authenticate-phone="isWechatPhoneLoginEnabled ? auth.loginWithWechatPhone : undefined"
     :explain-error="explainError"
     @success="openHome"
   />
