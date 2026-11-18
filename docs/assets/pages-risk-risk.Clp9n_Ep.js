@@ -1,1 +1,0 @@
-import{Q as s,mt as a,rt as i}from"./index-jHW137Cl.js";import{t}from"./SmisTaskListView.B3gcGSPi.js";var r=i({__name:"index",setup:i=>(i,r)=>(a(),s(t,{kind:"risk"}))});export{r as default};

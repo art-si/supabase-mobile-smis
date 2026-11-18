@@ -20,14 +20,14 @@ const cases = [
   ['schedule/index', [['排班切月按钮', '.month-action', '.mobile-icon', ':scope']]],
   ['quick-report/index', [['表单小节', '.form-section__head', '.form-section__icon', '.form-section__copy'], ['现场照片入口', '.mobile-evidence__add', '.mobile-icon', '.mobile-inline-pair__label'], ['上报说明圆点', '.submit-note', '.i', ':scope > uni-text', 'first'], ['必填场所提示', '.option-warning', '.mobile-icon', ':scope > uni-text', 'first']]],
   ['mine/index', [['账号警告', '.link-warning', '.mobile-icon', ':scope > uni-text', 'first'], ['我的账号列表', '.account-links .mobile-row', '.mobile-row__icon', '.mobile-row__body']]],
-  ['settings/index', [['主题选择标题', '.theme-picker__label', '.mobile-icon', 'uni-text'], ['选中主题图标', '.theme-picker__swatch--selected', '.mobile-icon', ':scope']]],
+  ['settings/index', [['主题选择标题', '.theme-picker__label', '.mobile-icon', '.mobile-inline-pair__label'], ['选中主题图标', '.theme-picker__choice[aria-pressed="true"] .theme-picker__check', '.mobile-icon', ':scope']]],
   ['login/index', [['登录表单字段', '.login-form__field', '.mobile-icon', 'input']]]
 ]
 
 const iconBoxes = [
   '.report-entry__icon', '.quick-card__icon', '.safe-state__icon', '.message__icon', '.equipment__icon',
   '.identity__fallback', '.info-icon', '.action__icon', '.form-section__icon', '.location-field__resolved-icon',
-  '.mobile-row__icon', '.month-action', '.theme-picker__swatch--selected', '.mobile-select__close'
+  '.mobile-row__icon', '.month-action', '.theme-picker__choice[aria-pressed="true"] .theme-picker__check', '.mobile-sheet__close'
 ]
 
 async function measureIconBoxes(page) {
@@ -119,7 +119,7 @@ try {
         await page.getByRole('button', { name: '所属组织', exact: true }).press('Enter')
         const dialog = page.getByRole('dialog', { name: '所属组织', exact: true })
         await dialog.waitFor()
-        records.push({ width, route: 'quick-report/selector', geometry: await measure(page, [['选择弹层关闭按钮', '.mobile-select__close', '.mobile-icon', ':scope']]), boxes: await measureIconBoxes(page) })
+        records.push({ width, route: 'quick-report/selector', geometry: await measure(page, [['选择弹层关闭按钮', '[aria-label="关闭选择"]', '.mobile-icon', ':scope']]), boxes: await measureIconBoxes(page) })
         await dialog.getByRole('button', { name: '关闭选择' }).click()
       }
       if (route === 'mine/index') {

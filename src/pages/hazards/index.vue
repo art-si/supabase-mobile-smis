@@ -8,6 +8,7 @@ import { usePageTheme } from '@/composables/usePageTheme'
 import { computed, onBeforeUnmount, ref } from 'vue'
 import { onPullDownRefresh, onReachBottom, onShow } from '@dcloudio/uni-app'
 import MobileTopBar from '@mobile-core/components/MobileTopBar.vue'
+import MobileWorkspace from '@mobile-core/components/MobileWorkspace.vue'
 import SmisStatusTag from '@/components/business/SmisStatusTag.vue'
 import MobileEmptyState from '@mobile-core/components/MobileEmptyState.vue'
 import MobileIcon from '@mobile-core/components/MobileIcon.vue'
@@ -98,23 +99,25 @@ onBeforeUnmount(requests.invalidate)
 
 <template>
 <wd-config-provider :theme="themeName">
-  <view class="page-shell">
+  <MobileWorkspace container-class="page-shell">
     <MobileTopBar capsule="always" title="隐患治理" eyebrow="HAZARD CLOSURE" subtitle="从上报到验收，全程可追溯" show-back />
     <view class="page-body hazard-body">
       <MobileLoadError v-if="loadError && !failedMore" :message="loadError" @retry="load()" />
       <MobileMetricGrid :items="[{ label: '全部隐患', value: overview.total }, { label: '整改中', value: overview.rectifying }, { label: '待验收', value: overview.pendingAcceptance, tone: 'warning' }]" />
 
       <view class="hazard-tools surface-card">
-        <MobileSearch v-model="keyword" name="hazard-keyword" label="搜索隐患" placeholder="输入隐患编号" action-label="查询" compact-action :disabled="loading" @submit="search" @clear="search" />
+        <MobileSearch v-model="keyword" name="hazard-keyword" label="搜索隐患" placeholder="输入隐患编号" action-label="查询" compact-action @submit="search" @clear="search" />
         <MobileSegmented label="筛选隐患状态" :model-value="status" :options="tabs" @update:model-value="select" />
       </view>
 
       <view v-if="loading" class="loading"><MobileLoadingStatus label="正在同步隐患台账…" /></view>
       <view v-else-if="rows.length" class="hazard-list">
         <MobileAction v-for="item in rows" :key="item.id" class="hazard surface-card" @click="openDetail(item.id)">
-          <view class="hazard__head">
-            <view class="hazard__level">{{ hazardLevelBadge(item.hazardLevel) }}</view>
-            <view><text>{{ item.hazardNo }}</text><text class="small">{{ formatDate(item.reportedAt, true) }}</text></view>
+          <view class="hazard__head mobile-card-identity">
+            <view class="hazard__identity mobile-card-identity__main">
+              <view class="hazard__level">{{ hazardLevelBadge(item.hazardLevel) }}</view>
+              <view><text translate="no">{{ item.hazardNo }}</text><text class="small">{{ formatDate(item.reportedAt, true) }}</text></view>
+            </view>
             <SmisStatusTag :status="item.status" />
           </view>
           <text class="hazard__desc line-clamp-2">{{ item.description }}</text>
@@ -143,20 +146,19 @@ onBeforeUnmount(requests.invalidate)
         <MobileAction v-if="!searchTerm && !status" class="smis-secondary-action" @click="openReport">随手拍上报</MobileAction>
       </MobileEmptyState>
     </view>
-  </view>
+  </MobileWorkspace>
 </wd-config-provider>
 </template>
 
 <style scoped lang="scss">
-.hazard-body { padding-bottom: 50rpx; }
 .hazard-tools { margin-top: 20rpx; padding: 10rpx; display: flex; flex-direction: column; gap: 8rpx; overflow: hidden; }
 .loading { min-height: 280rpx; display: flex; align-items: center; justify-content: center; font-size: clamp(13px, 20rpx, 14px); }
 .hazard-list { margin-top: 20rpx; display: flex; flex-direction: column; gap: 16rpx; }
 .hazard { width: 100%; min-width: 0; margin: 0; padding: 24rpx; text-align: left; overflow: hidden; }
-.hazard__head { display: flex; align-items: center; gap: 14rpx; }
+.hazard__identity { display: flex; align-items: center; gap: 14rpx; }
 .hazard__level { width: 58rpx; height: 58rpx; flex: 0 0 58rpx; border-radius: 17rpx; color: var(--smis-warning); background: #fff1df; font-size: clamp(14px, 25rpx, 15px); font-weight: 700; display: flex; align-items: center; justify-content: center; }
-.hazard__head > view:nth-child(2) { min-width: 0; flex: 1; display: flex; flex-direction: column; overflow-wrap: anywhere; }
-.hazard__head > view text { font-size: clamp(13px, 23rpx, 14px); font-weight: 700; }
+.hazard__identity > view:nth-child(2) { min-width: 0; flex: 1; display: flex; flex-direction: column; overflow-wrap: anywhere; }
+.hazard__identity text { font-size: max(13px, .8125rem); font-weight: 700; }
 .hazard__head .small { margin-top: 4rpx; color: var(--smis-text-muted); font-size: clamp(13px, 17rpx, 14px); font-weight: 500; }
 .hazard__desc { margin-top: 17rpx; font-size: clamp(14px, 26rpx, 15px); line-height: 1.5; font-weight: 700; overflow-wrap: anywhere; }
 .hazard__place { margin-top: 14rpx; color: var(--smis-text-secondary); font-size: clamp(13px, 20rpx, 14px); display: flex; }

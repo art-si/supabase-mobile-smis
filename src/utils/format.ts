@@ -14,8 +14,7 @@ export function formatDate(value?: string | null, withTime = false) {
   } : { year: 'numeric', month: '2-digit', day: '2-digit' }).format(date).replace(/\//g, '-')
 }
 
-export function currentMonth() {
-  const date = new Date()
+export function currentMonth(date = new Date()) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
 }
 

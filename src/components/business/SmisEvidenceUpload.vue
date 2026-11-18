@@ -129,9 +129,6 @@ function remove(item?: EvidenceItem) {
   syncValue()
 }
 
-function preview(item?: EvidenceItem) {
-  if (item) uni.previewImage({ urls: images.value, current: item.url })
-}
 </script>
 
 <template>
@@ -147,7 +144,7 @@ function preview(item?: EvidenceItem) {
     <MobileEvidence
       class="evidence-upload__controls"
       :images="images" :label="title" :limit="max" :disabled="disabled" :uploading="busy"
-      @preview="preview(items[$event])" @remove="remove(items[$event])" @upload="addPhotos"
+      @remove="remove(items[$event])" @upload="addPhotos"
     >
       <template #status="{ index }">
         <text v-if="items[index]?.status === 'uploading'" class="evidence-upload__state" role="status">上传中…</text>

@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { mkdir } from 'node:fs/promises'
+import { mkdir, writeFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { chromium } from 'playwright'
 import { installBuiltPages, installFixtures, seedSession, session } from './audit-fixtures.mjs'
@@ -16,7 +16,140 @@ async function choosePhoto(page) {
 async function capture(page, name) {
   if (flowOutput) await page.screenshot({ path: resolve(flowOutput, `${name}.png`) })
 }
-try {
+async function auditScheduleDay() {
+  const runs = []
+  for (const [mode, width, largeText] of [['393-touch', 393, false], ['320-default', 320, false], ['320-large', 320, true]]) {
+    const page = await browser.newPage({ viewport: { width, height: 740 }, isMobile: true, hasTouch: true, reducedMotion: 'reduce', timezoneId: 'Asia/Shanghai' })
+    try {
+      const requestedMonths = []
+      await page.clock.setFixedTime(new Date('2026-11-17T10:00:00+08:00'))
+      if (process.env.SMIS_AUDIT_BUILD) await page.route('**/*', route => route.abort())
+      await installBuiltPages(page, base)
+      await installFixtures(page)
+      await page.route(url => url.pathname.endsWith('/smis_get_employee_shift_calendar_secure'), route => {
+        const month = route.request().postDataJSON().p_month.slice(0, 7)
+        requestedMonths.push(month)
+        const assignments = Array.from({ length: 29 }, (_, index) => {
+          const day = Math.min(index + 1, 28)
+          return {
+            id: `${month}-${index}`, workDate: `${month}-${String(day).padStart(2, '0')}`,
+            shiftName: index === 28 ? '夜间巡检及生产风险交接' : '生产车间安全巡检及生产风险交接',
+            startTime: index === 28 ? '20:00:00' : '08:00:00', endTime: index === 28 ? '05:00:00' : '17:00:00',
+            assignmentStatus: ['scheduled', 'worked', 'leave', 'cancelled'][index % 4], crossDay: index === 28
+          }
+        })
+        return route.fulfill({ status: 200, json: { assignments } })
+      })
+      await page.addInitScript(value => localStorage.setItem('smis-mobile-session', JSON.stringify({ type: 'string', data: JSON.stringify(value) })), session)
+      await page.goto(`${base}#/pages/schedule/index`)
+      const shifts = page.locator('.shift-list .shift')
+      await shifts.nth(28).waitFor()
+      if (largeText) {
+        await page.evaluate(() => {
+          document.documentElement.style.setProperty('font-size', '24px', 'important')
+          return new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))
+        })
+      }
+      const monthCalendar = page.locator('.days')
+      const busyDates = monthCalendar.getByRole('button')
+      const day28 = monthCalendar.getByRole('button', { name: /^11月28日/ })
+      const returnToThisMonth = page.getByRole('button', { name: '回到本月', exact: true })
+      assert.equal(await busyDates.count(), 28, 'Only dates with shifts are interactive')
+      assert.equal(await monthCalendar.getByRole('button', { name: /^11月29日/ }).count(), 0, 'Dates without shifts stay static')
+      assert.equal(await page.locator('.day__number--today:visible').textContent(), '17')
+      assert.match(await monthCalendar.locator('[aria-current="date"]').textContent(), /17/)
+      assert.equal(await returnToThisMonth.count(), 0, 'No return button on the current month')
+      const geometry = await page.locator('.calendar').evaluate(calendar => {
+        const midpoint = rect => rect.left + rect.width / 2
+        const textBox = node => {
+          const range = document.createRange()
+          range.selectNodeContents(node)
+          return range.getBoundingClientRect()
+        }
+        const weekdays = [...calendar.querySelectorAll('.week > *')].map(node => midpoint(node.getBoundingClientRect()))
+        const buttons = [...calendar.querySelectorAll('.day')].flatMap((cell, index) => {
+          const button = cell.matches('[aria-pressed]') ? cell : cell.querySelector('[aria-pressed]')
+          if (!button) return []
+          const rect = button.getBoundingClientRect()
+          const date = textBox(button.querySelector('.day__number'))
+          const mark = textBox(button.querySelector('.day__mark'))
+          const overlapX = Math.min(date.right, mark.right) - Math.max(date.left, mark.left)
+          const overlapY = Math.min(date.bottom, mark.bottom) - Math.max(date.top, mark.top)
+          return [{ width: rect.width, height: rect.height, centerOffset: Math.abs(midpoint(rect) - weekdays[index % 7]), overlap: overlapX > 0.5 && overlapY > 0.5, clipped: [date, mark].some(box => box.left < rect.left - 0.5 || box.right > rect.right + 0.5 || box.top < rect.top - 0.5 || box.bottom > rect.bottom + 0.5) }]
+        })
+        return {
+          rootFont: getComputedStyle(document.documentElement).fontSize,
+          minWidth: Math.min(...buttons.map(button => button.width)), minHeight: Math.min(...buttons.map(button => button.height)),
+          maxColumnOffset: Math.max(...buttons.map(button => button.centerOffset)),
+          overlappingDatesAndMarkers: buttons.filter(button => button.overlap).length,
+          clippedDatesOrMarkers: buttons.filter(button => button.clipped).length,
+          horizontalOverflow: document.documentElement.scrollWidth - innerWidth
+        }
+      })
+      assert.ok(geometry.minWidth >= 44 && geometry.minHeight >= 44, `${mode}: date buttons must be at least 44 by 44 px (${JSON.stringify(geometry)})`)
+      assert.ok(geometry.maxColumnOffset <= 1 && geometry.horizontalOverflow <= 1, `${mode}: align date columns to weekdays without sideways scrolling`)
+      assert.equal(geometry.overlappingDatesAndMarkers, 0, `${mode}: the date must not cover its shift marker`)
+      assert.equal(geometry.clippedDatesOrMarkers, 0, `${mode}: keep full date and marker text inside their button`)
+      await capture(page, `schedule-${mode}-month`)
+
+      assert.equal(await day28.getAttribute('aria-pressed'), 'false')
+      if (mode.endsWith('touch')) {
+        await day28.tap()
+      } else {
+        await monthCalendar.getByRole('button', { name: /^11月27日/ }).focus()
+        await page.keyboard.press('Tab')
+        assert.equal(await day28.evaluate(button => document.activeElement === button), true, 'Consecutive dates follow calendar order for keyboard navigation')
+        await page.keyboard.press(largeText ? 'Enter' : 'Space')
+      }
+      await page.waitForFunction(() => {
+        const heading = document.getElementById('schedule-shifts')
+        const rect = heading?.getBoundingClientRect()
+        return heading === document.activeElement && rect?.top >= 0 && rect.bottom <= innerHeight
+      })
+      const focus = await page.getByRole('heading', { level: 2 }).and(page.locator('#schedule-shifts')).innerText()
+      assert.match(focus, /28日/)
+      const headingTop = await page.locator('#schedule-shifts').evaluate(heading => Math.round(heading.getBoundingClientRect().top))
+      assert.equal(await day28.getAttribute('aria-pressed'), 'true')
+      assert.equal(await shifts.count(), 2)
+      assert.equal(await shifts.getByText('20:00–05:00 · 次日结束', { exact: true }).count(), 1)
+      assert.deepEqual(requestedMonths, ['2026-11'], 'Choosing a day filters the loaded month without a new request')
+      await capture(page, `schedule-${mode}-selected`)
+
+      const restore = page.getByRole('button', { name: '查看整月', exact: true })
+      if (mode.endsWith('touch')) await restore.tap()
+      else await restore.press('Enter')
+      await shifts.nth(28).waitFor()
+      assert.equal(await day28.getAttribute('aria-pressed'), 'false')
+      assert.deepEqual(requestedMonths, ['2026-11'], 'Returning to the full month uses the same loaded rows')
+
+      await page.getByRole('button', { name: '上个月', exact: true }).click()
+      await returnToThisMonth.waitFor()
+      await shifts.nth(28).waitFor()
+      assert.equal(await monthCalendar.locator('[aria-current="date"]').count(), 0)
+      await capture(page, `schedule-${mode}-historical`)
+      if (mode.endsWith('touch')) {
+        await returnToThisMonth.tap()
+      } else {
+        await page.getByRole('button', { name: '下个月', exact: true }).focus()
+        await page.keyboard.press('Tab')
+        assert.equal(await returnToThisMonth.evaluate(button => document.activeElement === button), true)
+        await page.keyboard.press('Enter')
+      }
+      await returnToThisMonth.waitFor({ state: 'hidden' })
+      await page.waitForFunction(() => document.activeElement?.id === 'schedule-month')
+      await shifts.nth(28).waitFor()
+      assert.equal(await page.locator('.day__number--today:visible').textContent(), '17')
+      assert.deepEqual(requestedMonths, ['2026-11', '2026-10', '2026-11'])
+      runs.push({ mode, width, geometry, requestedMonths, focusedHeading: focus, headingTop, selectedCount: 2, restoredCount: await shifts.count() })
+    } finally {
+      await page.close()
+    }
+  }
+  if (flowOutput) await writeFile(resolve(flowOutput, 'schedule-day-report.json'), `${JSON.stringify({ build: process.env.SMIS_AUDIT_BUILD, runs }, null, 2)}\n`)
+  console.log('PASS: 393px touch and 320px keyboard schedule filtering, large text, today, history and full month')
+}
+
+async function auditInteractions() {
   const page = await browser.newPage({ viewport: { width: 393, height: 852 } })
   const state = { empty: false, failure: false }
   await installBuiltPages(page, base)
@@ -454,4 +587,9 @@ try {
   assert.equal(await page.evaluate(() => localStorage.getItem('smis-mobile-session')), null)
   assert.equal(await page.evaluate(() => localStorage.getItem('smis-mobile-session')), null)
   console.log('PASS: login/logout, theme, selector keyboard/focus, required fields and character counts, location clear, photo upload failure/retry/remove, quick report, risk progress, inspection completion, status filter races, hazard rectification and acceptance/return, failure/retry, workbench search/navigation, equipment details, schedule, messages, map retry, touch targets and alignment')
+}
+
+try {
+  if (process.env.SMIS_AUDIT_FLOW !== 'schedule') await auditInteractions()
+  await auditScheduleDay()
 } finally { await browser.close() }

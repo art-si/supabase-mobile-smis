@@ -9,6 +9,7 @@ import MobileEvidence from '@mobile-core/components/MobileEvidence.vue'
 import MobileIcon from '@mobile-core/components/MobileIcon.vue'
 import SmisStatusTag from '@/components/business/SmisStatusTag.vue'
 import MobileTopBar from '@mobile-core/components/MobileTopBar.vue'
+import MobileWorkspace from '@mobile-core/components/MobileWorkspace.vue'
 import { revealControl } from '@mobile-core/form-focus'
 import MobileField from '@mobile-core/components/MobileField.vue'
 import { useAuthStore } from '@/stores/auth'
@@ -49,10 +50,6 @@ async function load(id: string, refresh = false) {
   }
 }
 
-function preview(index: number) {
-  const urls = detail.value?.imageUrls
-  if (urls?.[index]) uni.previewImage({ urls, current: urls[index] })
-}
 
 async function submit(result?: 'passed' | 'rejected') {
   const record = detail.value
@@ -105,7 +102,7 @@ onLoad((query) => load(String(query?.id || '')))
 
 <template>
 <wd-config-provider :theme="themeName">
-  <view class="page-shell">
+  <MobileWorkspace container-class="page-shell">
     <MobileTopBar capsule="always" title="隐患详情" :subtitle="detail?.hazardNo || '隐患治理闭环'" show-back />
     <view class="page-body detail-body">
       <MobileLoadError v-if="loadError" :message="loadError" @retry="load(currentId)" />
@@ -123,7 +120,7 @@ onLoad((query) => load(String(query?.id || '')))
             <text class="mobile-inline-pair__label">{{ detail.location }}</text>
           </view>
           <view v-if="detail.imageUrls.length" class="hazard-evidence">
-            <MobileEvidence :images="detail.imageUrls" label="隐患现场照片" readonly @preview="preview" />
+            <MobileEvidence :images="detail.imageUrls" label="隐患现场照片" readonly />
           </view>
         </view>
 
@@ -208,13 +205,13 @@ onLoad((query) => load(String(query?.id || '')))
 
       <view v-else-if="!loadError" class="loading surface-card">隐患不存在或无权查看</view>
     </view>
-  </view>
+  </MobileWorkspace>
 </wd-config-provider>
 </template>
 
 <style scoped lang="scss">
 .action-notice { --mobile-inline-pair-gap: 8px; --mobile-inline-pair-leading: 1.45; display: flex; padding: 12px 16px; margin-top: 16px; background: var(--smis-green-soft); color: var(--smis-text-strong); font-size: max(14px, .875rem); }
-.detail-body { padding-top: 26rpx; padding-bottom: 50rpx; }
+.detail-body { padding-top: 26rpx; }
 .loading { min-height: 340rpx; display: flex; align-items: center; justify-content: center; color: var(--smis-text-muted); }
 .hazard-main { padding: 26rpx; }
 .hazard-main__head { display: flex; align-items: center; gap: 15rpx; }

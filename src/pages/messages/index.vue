@@ -12,6 +12,7 @@ import MobileEmptyState from '@mobile-core/components/MobileEmptyState.vue'
 import MobileIcon from '@mobile-core/components/MobileIcon.vue'
 import MobileMetricGrid from '@mobile-core/components/MobileMetricGrid.vue'
 import MobileListFooter from '@mobile-core/components/MobileListFooter.vue'
+import MobileWorkspace from '@mobile-core/components/MobileWorkspace.vue'
 import { createLatestRequest } from '@mobile-core/latest-request'
 import { mergePageRows } from '@mobile-core/list-rows'
 import { useAuthStore } from '@/stores/auth'
@@ -101,7 +102,7 @@ onBeforeUnmount(requests.invalidate)
 
 <template>
 <wd-config-provider :theme="themeName">
-  <view class="page-shell page-shell--tabbed">
+  <MobileWorkspace container-class="page-shell page-shell--tabbed">
     <MobileTopBar capsule="always" title="安全消息" subtitle="需要跟进的巡查与验收" />
     <view class="page-body message-body" role="main">
       <MobileLoadError v-if="loadError && !failedMore" :message="loadError" @retry="load()" />
@@ -140,7 +141,7 @@ onBeforeUnmount(requests.invalidate)
       <MobileEmptyState v-else-if="!loading && !loadError" icon="check" title="没有待处理消息" description="逾期任务和待验收隐患会出现在这里" class="surface-card" />
     </view>
     <SmisBottomNav active="messages" />
-  </view>
+  </MobileWorkspace>
 </wd-config-provider>
 </template>
 

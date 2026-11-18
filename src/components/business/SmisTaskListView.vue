@@ -7,6 +7,7 @@ import { usePageTheme } from '@/composables/usePageTheme'
 import { computed, onBeforeUnmount, ref } from 'vue'
 import { onPullDownRefresh, onReachBottom, onShow } from '@dcloudio/uni-app'
 import MobileTopBar from '@mobile-core/components/MobileTopBar.vue'
+import MobileWorkspace from '@mobile-core/components/MobileWorkspace.vue'
 import SmisTaskCard from './SmisTaskCard.vue'
 import MobileEmptyState from '@mobile-core/components/MobileEmptyState.vue'
 import MobileSearch from '@mobile-core/components/MobileSearch.vue'
@@ -123,7 +124,7 @@ onBeforeUnmount(requests.invalidate)
 
 <template>
 <wd-config-provider :theme="themeName">
-  <view class="page-shell">
+  <MobileWorkspace container-class="page-shell">
     <MobileTopBar capsule="always"
       :title="kind === 'risk' ? '风险巡查' : '隐患排查'"
       :eyebrow="kind === 'risk' ? 'RISK CONTROL' : 'FIELD INSPECTION'"
@@ -141,7 +142,6 @@ onBeforeUnmount(requests.invalidate)
           label="搜索任务"
           :placeholder="kind === 'risk' ? '任务编号或风险点' : '输入任务编号'"
           compact-action
-          :disabled="loading"
           @submit="search"
           @clear="search"
         />
@@ -178,12 +178,12 @@ onBeforeUnmount(requests.invalidate)
         :description="searchTerm || status ? '试试更换关键词或任务状态' : '任务发布后会同步到这里'"
       />
     </view>
-  </view>
+  </MobileWorkspace>
 </wd-config-provider>
 </template>
 
 <style scoped lang="scss">
-.task-body { padding-top: 28rpx; padding-bottom: 56rpx; }
+.task-body { padding-top: 28rpx; }
 .task-tools { margin-top: 20rpx; padding: 10rpx; display: flex; flex-direction: column; gap: 8rpx; overflow: hidden; }
 .task-list { margin-top: 20rpx; display: flex; flex-direction: column; gap: 18rpx; }
 .loading { min-height: 280rpx; margin-top: 20rpx; display: flex; align-items: center; justify-content: center; font-size: clamp(13px, 20rpx, 14px); }

@@ -8,6 +8,7 @@ import SmisBottomNav from '@/components/business/SmisBottomNav.vue'
 import MobileIcon from '@mobile-core/components/MobileIcon.vue'
 import MobileTopBar from '@mobile-core/components/MobileTopBar.vue'
 import MobileSearch from '@mobile-core/components/MobileSearch.vue'
+import MobileWorkspace from '@mobile-core/components/MobileWorkspace.vue'
 import type { MobileIconName } from '@mobile-core/icons'
 import { useAuthStore } from '@/stores/auth'
 
@@ -42,7 +43,7 @@ onShow(() => useAuthStore().ensureValidSession())
 </script>
 <template>
 <wd-config-provider :theme="themeName">
-  <view class="page-shell page-shell--tabbed">
+  <MobileWorkspace container-class="page-shell page-shell--tabbed">
     <MobileTopBar capsule="always" title="安全工作台" subtitle="现场任务、设备与排班" />
     <view class="page-body workbench-body" role="main">
       <MobileSearch v-model="query" name="app-keyword" label="搜索应用" placeholder="搜索应用名称或用途…" action-label="" />
@@ -65,7 +66,7 @@ onShow(() => useAuthStore().ensureValidSession())
       <MobileEmptyState v-if="!filteredGroups.length" icon="search" title="未找到相关应用" description="试试“巡查”“设备”或“排班”" />
     </view>
     <SmisBottomNav active="workbench" />
-  </view>
+  </MobileWorkspace>
 </wd-config-provider>
 </template>
 <style scoped lang="scss">

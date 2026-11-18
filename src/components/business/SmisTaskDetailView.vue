@@ -131,7 +131,6 @@ onLoad((query) => load(String(query?.id || '')))
           <text class="task-head__title">{{ kind === 'risk' ? (detail as RiskTaskDetail).riskPointName : (detail as HazardInspectionTaskDetail).inspectionObject }}</text>
           <view class="task-head__dates">
             <view class="task-head__date"><text class="task-head__date-label">计划开始</text><text class="task-head__date-value">{{ formatDate(detail.plannedStartAt, true) }}</text></view>
-            <view class="i" />
             <view class="task-head__date"><text class="task-head__date-label">计划完成</text><text class="task-head__date-value">{{ formatDate(detail.plannedEndAt, true) }}</text></view>
           </view>
         </view>
@@ -229,17 +228,18 @@ onLoad((query) => load(String(query?.id || '')))
 </template>
 
 <style scoped lang="scss">
+@use '@mobile-core/styles/form';
 .task-edit-content { padding-bottom: 24px; }
 .loading { min-height: 340rpx; color: var(--smis-text-muted); display: flex; align-items: center; justify-content: center; }
 .task-head { padding: 26rpx; }
 .task-head__meta { display: flex; align-items: center; gap: 12rpx; }
 .task-head__type { color: var(--smis-text-muted); font-size: clamp(13px, 18rpx, 14px); }
 .task-head__title { display: block; margin-top: 15rpx; font-size: clamp(15px, 28rpx, 17px); font-weight: 700; line-height: 1.45; }
-.task-head__dates { margin-top: 20rpx; padding: 18rpx; border-radius: 17rpx; background: var(--smis-control-bg); display: grid; grid-template-columns: minmax(0, 1fr) 1rpx minmax(0, 1fr); gap: 18rpx; }
+.task-head__dates { @include form.field-grid; margin-top: 20rpx; padding: 12px; border-radius: 17rpx; background: var(--smis-control-bg); }
 .task-head__date { min-width: 0; display: flex; flex-direction: column; }
-.task-head__date-label { color: var(--smis-text-muted); font-size: clamp(13px, 18rpx, 14px); }
-.task-head__date-value { margin-top: 5rpx; color: var(--smis-text); font-size: clamp(13px, 20rpx, 14px); font-weight: 600; line-height: 1.35; }
-.task-head__dates .i { background: var(--smis-line); }
+.task-head__date-label { color: var(--smis-text-muted); font-size: max(13px, .8125rem); }
+.task-head__date-value { margin-top: 5rpx; color: var(--smis-text); font-size: max(14px, .875rem); font-weight: 600; line-height: 1.35; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.task-dock .mobile-dock__actions { @include form.field-grid($gap: 8px); }
 .progress { margin-top: 16rpx; padding: 23rpx; }
 .progress__head { display: flex; align-items: center; justify-content: space-between; }
 .progress__label { color: var(--smis-text-secondary); font-size: clamp(13px, 20rpx, 14px); }

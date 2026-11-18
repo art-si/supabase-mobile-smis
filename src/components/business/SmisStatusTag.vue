@@ -3,7 +3,7 @@ import { computed } from 'vue'
 import MobileStatusTag from '@mobile-core/components/MobileStatusTag.vue'
 import { STATUS_LABEL } from '@/utils/format'
 const props = defineProps<{ status?: string | null; label?: string }>()
-const text = computed(() => props.label || STATUS_LABEL[props.status || ''] || props.status || '--')
+const text = computed(() => props.label || STATUS_LABEL[props.status || ''] || '状态未知')
 const tone = computed(() => {
   if (['completed','closed','normal','in_use','enabled','active'].includes(props.status || '')) return 'green'
   if (['overdue','abnormal','fault'].includes(props.status || '')) return 'red'

@@ -187,8 +187,6 @@ onShow(load)
                 <MobileSelect
                   v-model="form.hazardOrganizationId" field="report-hazardOrganizationId" label="所属组织"
                   placeholder="请选择所属组织" :options="organizationOptions" :disabled="submitting"
-                  :invalid="Boolean(fieldError('hazardOrganizationId'))"
-                  :described-by="fieldError('hazardOrganizationId') ? 'report-hazardOrganizationId-error' : undefined"
                 />
               </MobileField>
             </view>
@@ -197,8 +195,7 @@ onShow(load)
                 <MobileSelect
                   v-model="form.siteId" field="report-siteId" label="场所区域" :options="siteOptions"
                   :placeholder="siteOptions.length ? '请选择场所区域' : '暂无可用场所'" :disabled="submitting || !siteOptions.length"
-                  :invalid="Boolean(fieldError('siteId') && siteOptions.length)"
-                  :described-by="!siteOptions.length ? 'report-site-unavailable' : fieldError('siteId') ? 'report-siteId-error' : undefined"
+                  :described-by="!siteOptions.length ? 'report-site-unavailable' : undefined"
                 />
               </MobileField>
             </view>
@@ -222,8 +219,6 @@ onShow(load)
                 <MobileSelect
                   v-model="form.hazardLevel" field="report-hazardLevel" label="隐患等级"
                   placeholder="请选择隐患等级" :options="hazardLevelOptions" :disabled="submitting"
-                  :invalid="Boolean(fieldError('hazardLevel'))"
-                  :described-by="fieldError('hazardLevel') ? 'report-hazardLevel-error' : undefined"
                 />
               </MobileField>
             </view>

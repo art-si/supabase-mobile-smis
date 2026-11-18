@@ -1,0 +1,1 @@
+import{Q as t,gt as a,it as i}from"./index-SI5vQEid.js";import{t as s}from"./SmisTaskDetailView.D3_91FWj.js";var e=i({__name:"detail",setup:i=>(i,e)=>(a(),t(s,{kind:"inspection"}))});export{e as default};

@@ -8,6 +8,7 @@ import { usePageTheme } from '@/composables/usePageTheme'
 import { computed, onBeforeUnmount, ref } from 'vue'
 import { onLoad, onPullDownRefresh, onReachBottom, onShow } from '@dcloudio/uni-app'
 import MobileTopBar from '@mobile-core/components/MobileTopBar.vue'
+import MobileWorkspace from '@mobile-core/components/MobileWorkspace.vue'
 import MobileIcon from '@mobile-core/components/MobileIcon.vue'
 import SmisStatusTag from '@/components/business/SmisStatusTag.vue'
 import MobileEmptyState from '@mobile-core/components/MobileEmptyState.vue'
@@ -90,7 +91,7 @@ onBeforeUnmount(requests.invalidate)
 
 <template>
 <wd-config-provider :theme="themeName">
-  <view class="page-shell">
+  <MobileWorkspace container-class="page-shell">
     <MobileTopBar capsule="always" title="设备台账" subtitle="状态、位置与检验周期" show-back />
     <view class="page-body ledger-body" role="main">
       <MobileSearch v-model="keyword" class="ledger-search" name="equipment-keyword" label="搜索设备" placeholder="设备编号、名称或型号…" action-label="查询" compact-action @submit="search" @clear="search" />
@@ -127,12 +128,11 @@ onBeforeUnmount(requests.invalidate)
       </view>
       <MobileEmptyState icon="equipment" v-else-if="!loading && !loadError" :title="appliedKeyword ? '没有匹配的设备' : '暂无设备档案'" :description="appliedKeyword ? '试试更短的设备编号、名称或型号' : '在 Web 端登记设备后，这里会同步显示'" />
     </view>
-  </view>
+  </MobileWorkspace>
 </wd-config-provider>
 </template>
 
 <style scoped lang="scss">
-.ledger-body { padding-bottom: calc(24px + var(--mobile-safe-bottom)); }
 .ledger-search { margin-bottom: 12px; }
 .ledger-summary { --mobile-metric-decoration: none; --mobile-metric-background: var(--smis-surface); }
 .equipment-list { margin-top: 20rpx; }
